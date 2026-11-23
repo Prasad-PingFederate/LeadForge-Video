@@ -34,7 +34,7 @@ if not Path(FFMPEG_EXE).exists():
     except Exception:
         FFMPEG_EXE = "ffmpeg"
 
-# Sample curated deals from LeadForge
+# 10 Curated High-Converting Deals & Brand Promos
 SAMPLE_DEALS = [
     {
         "asin": "B002MPPTB8",
@@ -47,7 +47,35 @@ SAMPLE_DEALS = [
         "rating": 4.4,
         "reviews": 28400,
         "image_url": "https://m.media-amazon.com/images/I/71uQaPuz8jL._SL600_.jpg",
-        "affiliate_url": "https://www.amazon.in/dp/B002MPPTB8?tag=dammaiprasad-21"
+        "affiliate_url": "https://www.amazon.in/dp/B002MPPTB8?tag=dammaiprasad-21",
+        "default_lang": "hi",
+        "default_voice": "hi-IN-MadhurNeural"
+    },
+    {
+        "asin": "BHARATBAZARO_RADAR",
+        "title": "BharatBazaro 24/7 AI Deal Radar for Amazon India",
+        "category": "Shopping & Deals",
+        "mrp": 9999,
+        "price": 0,
+        "discount": 100,
+        "savings": 9999,
+        "rating": 4.9,
+        "reviews": 15000,
+        "image_url": "https://m.media-amazon.com/images/I/71VjXyGfW2L._SL600_.jpg",
+        "affiliate_url": "https://bharatbazaro.com",
+        "default_lang": "en",
+        "default_voice": "en-IN-NeerjaNeural",
+        "custom_script": (
+            "Hey! Are you still searching Amazon for hours hoping to find a good deal? "
+            "Meet BharatBazaro — India's 24/7 AI Deal Radar. "
+            "It automatically scans thousands of Amazon India products every few minutes and finds real price drops, "
+            "hidden checkbox coupons, and even rare price errors. "
+            "Every deal comes with verified Keepa price history, so you know exactly how good the discount is. "
+            "Whether you want earbuds under 999 rupees, smartwatches, home appliances, or big brand loot — "
+            "BharatBazaro surfaces the best ones first. "
+            "Just visit bharatbazaro.com or join our VIP Telegram channel. "
+            "Stop overpaying. Start saving smarter. Link in bio!"
+        )
     },
     {
         "asin": "B091CR2FXY",
@@ -60,7 +88,9 @@ SAMPLE_DEALS = [
         "rating": 4.5,
         "reviews": 12800,
         "image_url": "https://m.media-amazon.com/images/I/71VjXyGfW2L._SL600_.jpg",
-        "affiliate_url": "https://www.amazon.in/dp/B091CR2FXY?tag=dammaiprasad-21"
+        "affiliate_url": "https://www.amazon.in/dp/B091CR2FXY?tag=dammaiprasad-21",
+        "default_lang": "hi",
+        "default_voice": "hi-IN-MadhurNeural"
     },
     {
         "asin": "B09W2GFM7Y",
@@ -73,7 +103,109 @@ SAMPLE_DEALS = [
         "rating": 4.1,
         "reviews": 94200,
         "image_url": "https://m.media-amazon.com/images/I/71h6PpGaz9L._SL600_.jpg",
-        "affiliate_url": "https://www.amazon.in/dp/B09W2GFM7Y?tag=dammaiprasad-21"
+        "affiliate_url": "https://www.amazon.in/dp/B09W2GFM7Y?tag=dammaiprasad-21",
+        "default_lang": "hi",
+        "default_voice": "hi-IN-SwaraNeural"
+    },
+    {
+        "asin": "B09NVPSCQT",
+        "title": "Noise Buds VS102 Wireless Earbuds 50H Playtime",
+        "category": "Electronics & Audio",
+        "mrp": 2999,
+        "price": 899,
+        "discount": 70,
+        "savings": 2100,
+        "rating": 4.2,
+        "reviews": 68400,
+        "image_url": "https://m.media-amazon.com/images/I/51HBom8xz7L._SL600_.jpg",
+        "affiliate_url": "https://www.amazon.in/dp/B09NVPSCQT?tag=dammaiprasad-21",
+        "default_lang": "en",
+        "default_voice": "en-IN-PrabhatNeural"
+    },
+    {
+        "asin": "B0BY2W1H1S",
+        "title": "Fastrack Limitless FS1 1.95 Display Smartwatch",
+        "category": "Smartwatches & Wearables",
+        "mrp": 3995,
+        "price": 1299,
+        "discount": 67,
+        "savings": 2696,
+        "rating": 4.1,
+        "reviews": 34100,
+        "image_url": "https://m.media-amazon.com/images/I/61y2VVWcGBL._SL600_.jpg",
+        "affiliate_url": "https://www.amazon.in/dp/B0BY2W1H1S?tag=dammaiprasad-21",
+        "default_lang": "hi",
+        "default_voice": "hi-IN-MadhurNeural"
+    },
+    {
+        "asin": "B08F9G3Y8D",
+        "title": "Philips All-in-One Multi Grooming Kit 9-in-1",
+        "category": "Personal Care",
+        "mrp": 2295,
+        "price": 1449,
+        "discount": 37,
+        "savings": 846,
+        "rating": 4.4,
+        "reviews": 51200,
+        "image_url": "https://m.media-amazon.com/images/I/61K8Q-M2g8L._SL600_.jpg",
+        "affiliate_url": "https://www.amazon.in/dp/B08F9G3Y8D?tag=dammaiprasad-21",
+        "default_lang": "en",
+        "default_voice": "en-IN-NeerjaNeural"
+    },
+    {
+        "asin": "B09VDN3T3D",
+        "title": "Portronics Power Bank 10000mAh 22.5W Fast Charging",
+        "category": "Mobile Accessories",
+        "mrp": 1999,
+        "price": 799,
+        "discount": 60,
+        "savings": 1200,
+        "rating": 4.3,
+        "reviews": 18900,
+        "image_url": "https://m.media-amazon.com/images/I/61Nl5zGZ3RL._SL600_.jpg",
+        "affiliate_url": "https://www.amazon.in/dp/B09VDN3T3D?tag=dammaiprasad-21",
+        "default_lang": "hi",
+        "default_voice": "hi-IN-SwaraNeural"
+    },
+    {
+        "asin": "B08HV2R8C2",
+        "title": "Wipro 16A Smart WiFi Plug with Energy Monitoring",
+        "category": "Smart Home",
+        "mrp": 1490,
+        "price": 649,
+        "discount": 56,
+        "savings": 841,
+        "rating": 4.2,
+        "reviews": 23400,
+        "image_url": "https://m.media-amazon.com/images/I/61m1R5p3NfL._SL600_.jpg",
+        "affiliate_url": "https://www.amazon.in/dp/B08HV2R8C2?tag=dammaiprasad-21",
+        "default_lang": "en",
+        "default_voice": "en-IN-PrabhatNeural"
+    },
+    {
+        "asin": "BHARATBAZARO_LOOT_ALERT",
+        "title": "Stop Paying Full Price on Amazon India! Loot Deal Alert",
+        "category": "Exclusive Deals",
+        "mrp": 4999,
+        "price": 999,
+        "discount": 80,
+        "savings": 4000,
+        "rating": 4.9,
+        "reviews": 42000,
+        "image_url": "https://m.media-amazon.com/images/I/71uQaPuz8jL._SL600_.jpg",
+        "affiliate_url": "https://bharatbazaro.com",
+        "default_lang": "en",
+        "default_voice": "en-IN-NeerjaNeural",
+        "custom_script": (
+            "Wait, don’t buy that on Amazon yet! "
+            "Did you know 80% of massive price drops and coupon glitches on Amazon India expire in under 30 minutes? "
+            "That’s why thousands of smart shoppers use BharatBazaro. "
+            "It’s an AI deal radar that scans Amazon India 24/7. "
+            "When branded cookware crashes, or premium electronics get a secret 60% checkbox coupon, "
+            "BharatBazaro alerts you immediately. "
+            "Every single deal is Keepa-verified — zero fake MRP markups, only real historic lows. "
+            "Stop wasting money. Visit bharatbazaro.com or tap the link in bio to join our VIP Telegram channel right now!"
+        )
     }
 ]
 
@@ -93,7 +225,7 @@ def get_font(size: int, bold: bool = False):
     return ImageFont.load_default()
 
 def download_product_image(url: str, asin: str) -> Path:
-    """Download or load cached product image."""
+    """Download Amazon product image or return cached image."""
     local_path = CACHE_DIR / f"{asin}.jpg"
     if local_path.exists() and local_path.stat().st_size > 5000:
         return local_path
@@ -110,7 +242,7 @@ def download_product_image(url: str, asin: str) -> Path:
     # Generate placeholder if download fails
     placeholder = Image.new("RGB", (600, 600), color=(240, 243, 246))
     draw = ImageDraw.Draw(placeholder)
-    draw.text((200, 280), "PRODUCT IMAGE", fill=(100, 116, 139), font=get_font(28, bold=True))
+    draw.text((150, 280), "BHARATBAZARO DEALS", fill=(100, 116, 139), font=get_font(28, bold=True))
     placeholder.save(local_path)
     return local_path
 
@@ -140,7 +272,6 @@ def create_slide_image(deal: dict, slide_idx: int) -> Path:
     try:
         p_img = Image.open(img_path).convert("RGBA")
         p_img.thumbnail((800, 760), Image.Resampling.LANCZOS)
-        # Center in container
         offset_x = 100 + (880 - p_img.width) // 2
         offset_y = 260 + (800 - p_img.height) // 2
         img.paste(p_img, (offset_x, offset_y), p_img)
@@ -171,23 +302,26 @@ def create_slide_image(deal: dict, slide_idx: int) -> Path:
     draw.rounded_rectangle([(80, box_y), (1000, box_y + 260)], radius=30, fill=(24, 32, 47))
     
     # Strikethrough MRP
-    draw.text((120, box_y + 30), f"MRP: ₹{deal['mrp']:,}", fill=(148, 163, 184), font=get_font(38))
-    draw.line([(115, box_y + 55), (380, box_y + 55)], fill=(239, 68, 68), width=4)
+    if deal['mrp'] > 0:
+        draw.text((120, box_y + 30), f"MRP: ₹{deal['mrp']:,}", fill=(148, 163, 184), font=get_font(38))
+        draw.line([(115, box_y + 55), (380, box_y + 55)], fill=(239, 68, 68), width=4)
 
     # Big Deal Price
-    draw.text((120, box_y + 85), f"Deal Price: ₹{deal['price']:,}", fill=(52, 211, 153), font=get_font(68, bold=True))
+    price_text = f"Deal Price: ₹{deal['price']:,}" if deal['price'] > 0 else "Free AI Radar Access"
+    draw.text((120, box_y + 85), price_text, fill=(52, 211, 153), font=get_font(68, bold=True))
 
     # Savings Pill
-    draw.rounded_rectangle([(120, box_y + 185), (600, box_y + 240)], radius=15, fill=(16, 185, 129))
-    draw.text((140, box_y + 195), f"YOU SAVE FLAT ₹{deal['savings']:,} ({deal['discount']}% OFF)", fill=(255, 255, 255), font=get_font(26, bold=True))
+    draw.rounded_rectangle([(120, box_y + 185), (650, box_y + 240)], radius=15, fill=(16, 185, 129))
+    savings_text = f"YOU SAVE FLAT ₹{deal['savings']:,} ({deal['discount']}% OFF)" if deal['savings'] > 0 else "100% FREE UNLIMITED DEALS"
+    draw.text((140, box_y + 195), savings_text, fill=(255, 255, 255), font=get_font(26, bold=True))
 
     # 5. Social Proof / Ratings
     rating_y = 1570
-    draw.text((100, rating_y), f"⭐ {deal['rating']} / 5.0 Rating  |  {deal['reviews']:,}+ Happy Buyers", fill=(251, 191, 36), font=get_font(34, bold=True))
+    draw.text((100, rating_y), f"⭐ {deal['rating']} / 5.0 Rating  |  {deal['reviews']:,}+ Happy Users", fill=(251, 191, 36), font=get_font(34, bold=True))
 
     # 6. Bottom Call to Action Banner
     draw.rounded_rectangle([(80, 1660), (1000, 1840)], radius=30, fill=(37, 99, 235))
-    cta_title = "👇 TAP LINK IN BIO / COMMENT 👇" if slide_idx != 2 else "🚀 JOIN WHATSAPP VIP DEALS GROUP"
+    cta_title = "👇 TAP LINK IN BIO / COMMENT 👇" if slide_idx != 2 else "🚀 JOIN WHATSAPP & TELEGRAM VIP"
     cta_sub = "Verified Amazon India Affiliate Link" if slide_idx != 2 else "Visit BharatBazaro.com for daily loot deals"
     draw.text((130, 1700), cta_title, fill=(255, 255, 255), font=get_font(38, bold=True))
     draw.text((220, 1765), cta_sub, fill=(219, 234, 254), font=get_font(28))
@@ -203,7 +337,10 @@ async def generate_narration(script_text: str, voice: str, output_path: Path):
     await communicate.save(str(output_path))
 
 def build_deal_script(deal: dict, language: str = "en") -> str:
-    """Compose punchy Hook-Story-Offer script tailored to 15-20s Short."""
+    """Compose punchy Hook-Story-Offer script tailored to 20-30s Short."""
+    if "custom_script" in deal:
+        return deal["custom_script"]
+
     if language == "hi":
         return (
             f"Amazon India par loot deal alert! "
@@ -226,23 +363,20 @@ def build_deal_script(deal: dict, language: str = "en") -> str:
         )
 
 def get_audio_duration(audio_file: Path) -> float:
-    """Use FFprobe / FFmpeg to inspect audio duration."""
-    cmd = [
-        FFMPEG_EXE, "-i", str(audio_file)
-    ]
+    """Use FFmpeg to inspect audio duration."""
+    cmd = [FFMPEG_EXE, "-i", str(audio_file)]
     res = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-    # Search for "Duration: 00:00:18.45"
     for line in res.stderr.splitlines():
         if "Duration:" in line:
             parts = line.split("Duration:")[1].split(",")[0].strip()
             h, m, s = parts.split(":")
             return float(h) * 3600 + float(m) * 60 + float(s)
-    return 18.0
+    return 20.0
 
 def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, output_video: Path):
     """
     Assemble high-production 9:16 vertical video using FFmpeg.
-    Adds smooth Ken-Burns pan/zoom and mixes narration with optional background music.
+    Adds smooth Ken-Burns pan/zoom and mixes narration with background music.
     """
     total_duration = get_audio_duration(audio_path)
     slide_duration = total_duration / len(slides)
@@ -277,7 +411,6 @@ def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, outpu
     concat_list = OUTPUT_DIR / f"{deal['asin']}_concat.txt"
     with open(concat_list, "w") as f:
         for clip in clip_files:
-            # Escape path for ffmpeg concat
             f.write(f"file '{clip.as_posix()}'\n")
 
     video_only = OUTPUT_DIR / f"{deal['asin']}_visual.mp4"
@@ -295,7 +428,6 @@ def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, outpu
     bgm_path = BASE_DIR / "resource" / "songs" / "output001.mp3"
     
     if bgm_path.exists():
-        # Mix narration (100% volume) + BGM (12% volume ducked)
         filter_complex = (
             f"[1:a]volume=1.0[voice];"
             f"[2:a]volume=0.12,aloop=loop=-1:size=2e+09[bgm];"
@@ -316,7 +448,6 @@ def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, outpu
             str(output_video)
         ]
     else:
-        # Just narration audio
         cmd_final = [
             FFMPEG_EXE, "-y",
             "-i", str(video_only),
@@ -333,51 +464,64 @@ def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, outpu
     subprocess.run(cmd_final, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     return output_video
 
-def main():
-    parser = argparse.ArgumentParser(description="Generate 100% Free BharatBazaro Deal Videos")
-    parser.add_argument("--asin", type=str, default="B002MPPTB8", help="Amazon ASIN (default: Hawkins Cooker)")
-    parser.add_argument("--lang", type=str, default="hi", choices=["en", "hi"], help="Voice language: hi (Hindi) or en (Indian English)")
-    parser.add_argument("--voice", type=str, default="", help="Edge TTS voice name (default: hi-IN-MadhurNeural or en-IN-PrabhatNeural)")
-    args = parser.parse_args()
+def generate_single_deal_video(deal: dict, lang: str = None, voice: str = None):
+    """Orchestrates generation of one complete video short."""
+    lang = lang or deal.get("default_lang", "hi")
+    voice = voice or deal.get("default_voice", "hi-IN-MadhurNeural" if lang == "hi" else "en-IN-PrabhatNeural")
+    output_video = OUTPUT_DIR / f"bharatbazaro_{deal['asin']}_{lang}.mp4"
 
-    # Find deal
-    deal = next((d for d in SAMPLE_DEALS if d["asin"] == args.asin), SAMPLE_DEALS[0])
     print(f"\n=======================================================")
-    print(f"🎬 Generating BharatBazaro Short for: {deal['title']}")
+    print(f"🎬 Generating: {deal['title']}")
     print(f"💰 Deal: ₹{deal['price']:,} (MRP: ₹{deal['mrp']:,} | -{deal['discount']}%)")
+    print(f"🎙️ Voice: {voice} ({lang.upper()})")
     print(f"=======================================================")
 
-    # Select voice
-    if not args.voice:
-        args.voice = "hi-IN-MadhurNeural" if args.lang == "hi" else "en-IN-PrabhatNeural"
+    if output_video.exists() and output_video.stat().st_size > 1000000:
+        print(f"  ⚡ Video already generated at: {output_video.name} (Skipping re-render)")
+        return output_video
 
-    # Step 1: Generate Visual Cards
-    print("\n[1/4] 🎨 Generating 1080x1920 (9:16) Visual Cards...")
+    # 1. Slides
     slides = [create_slide_image(deal, i) for i in range(3)]
-    for s in slides:
-        print(f"  ✓ Created {s.name}")
-
-    # Step 2: Generate Script & Edge TTS Audio
-    print(f"\n[2/4] 🎙️ Synthesizing Voiceover with Edge TTS ({args.voice})...")
-    script_text = build_deal_script(deal, args.lang)
-    print(f"  Script: \"{script_text[:100]}...\"")
+    
+    # 2. Voice
+    script_text = build_deal_script(deal, lang)
     audio_path = OUTPUT_DIR / f"{deal['asin']}_voice.mp3"
-    asyncio.run(generate_narration(script_text, args.voice, audio_path))
+    asyncio.run(generate_narration(script_text, voice, audio_path))
     duration = get_audio_duration(audio_path)
-    print(f"  ✓ Voiceover complete! Duration: {duration:.1f}s")
+    print(f"  ✓ Narration ready: {duration:.1f}s")
 
-    # Step 3: Video Assembly
-    output_video = OUTPUT_DIR / f"bharatbazaro_{deal['asin']}_{args.lang}.mp4"
-    print(f"\n[3/4] 🎞️ Assembling Final HD Video with FFmpeg & Ken Burns Zoom...")
+    # 3. Assemble
     assemble_short_video(deal, slides, audio_path, output_video)
-
-    # Step 4: Verification
-    print(f"\n[4/4] ✅ Done! Video generated successfully at:")
-    print(f"  📍 {output_video.resolve()}")
     size_mb = output_video.stat().st_size / (1024 * 1024)
-    print(f"  📊 Size: {size_mb:.2f} MB | Duration: {duration:.1f}s | Resolution: 1080x1920 (9:16)")
-    print(f"  🔗 Amazon Affiliate Tag embedded: tag=dammaiprasad-21")
-    print(f"  💡 Zero API Cost. Zero Paid Models Used.\n")
+    print(f"  ✅ Render complete: {output_video.name} ({size_mb:.2f} MB | {duration:.1f}s)")
+    return output_video
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate 100% Free BharatBazaro Deal Videos")
+    parser.add_argument("--asin", type=str, default="", help="Single ASIN to generate")
+    parser.add_argument("--all", action="store_true", help="Generate all 10 curated daily videos")
+    parser.add_argument("--lang", type=str, default="", choices=["", "en", "hi"], help="Voice language override")
+    parser.add_argument("--voice", type=str, default="", help="Edge TTS voice override")
+    args = parser.parse_args()
+
+    if args.all:
+        print("\n" + "="*60)
+        print("🚀 BATCH GENERATING ALL 10 DAILY BHARATBAZARO VIDEOS")
+        print("="*60)
+        completed = []
+        for idx, deal in enumerate(SAMPLE_DEALS, 1):
+            print(f"\n[{idx}/10] Processing {deal['asin']}...")
+            v = generate_single_deal_video(deal, lang=args.lang or None, voice=args.voice or None)
+            completed.append(v)
+        print("\n" + "="*60)
+        print(f"🎉 ALL 10 VIDEOS READY IN {OUTPUT_DIR.resolve()}")
+        print("="*60)
+        for idx, v in enumerate(completed, 1):
+            print(f"  {idx}. {v.name} ({v.stat().st_size / (1024*1024):.2f} MB)")
+    else:
+        asin = args.asin or SAMPLE_DEALS[0]["asin"]
+        deal = next((d for d in SAMPLE_DEALS if d["asin"] == asin), SAMPLE_DEALS[0])
+        generate_single_deal_video(deal, lang=args.lang or None, voice=args.voice or None)
 
 if __name__ == "__main__":
     main()
