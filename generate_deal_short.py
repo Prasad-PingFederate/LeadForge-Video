@@ -5,7 +5,7 @@ for Amazon deals with ZERO external paid models and ZERO API costs.
 
 Voice: Microsoft Edge TTS (100% Free, unlimited, natural Indian voices)
 Video Engine: Local FFmpeg (Bundled via imageio-ffmpeg)
-Visuals: Dynamic 1080x1920 PIL slides with Amazon deal imagery & price badges
+Visuals: Dynamic 1080x1920 PIL slides with Amazon deal imagery, themed colors & price badges
 """
 
 import os
@@ -14,7 +14,10 @@ import argparse
 import asyncio
 import subprocess
 import requests
-from io import BytesIO
+import json
+import urllib.request
+import urllib.parse
+import re
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -34,8 +37,33 @@ if not Path(FFMPEG_EXE).exists():
     except Exception:
         FFMPEG_EXE = "ffmpeg"
 
-# 10 Curated High-Converting Deals & Brand Promos
+# Curated High-Converting Deals with Unique Themes, Voices, Colors & Music
 SAMPLE_DEALS = [
+    {
+        "asin": "B091CR2FXY",
+        "title": "AGARO Regency Air Fryer 12L 1800W",
+        "category": "Appliances & Cooking",
+        "mrp": 15999,
+        "price": 7499,
+        "discount": 53,
+        "savings": 8500,
+        "rating": 4.5,
+        "reviews": 12800,
+        "image_url": "https://m.media-amazon.com/images/I/71kXAZ5OprL.jpg",
+        "affiliate_url": "https://www.amazon.in/dp/B091CR2FXY?tag=dammaiprasad-21",
+        "default_lang": "en",
+        "default_voice": "en-IN-PrabhatNeural",
+        "theme": {
+            "bg_color": (6, 78, 59),            # Emerald Forest
+            "header_color": (16, 185, 129),     # Emerald Green
+            "header_text": "⚡ 53% OFF MASSIVE PRICE DROP ⚡",
+            "price_box_color": (4, 47, 46),
+            "accent_color": (52, 211, 153),
+            "badge_color": (217, 119, 6),
+            "bgm": "output002.mp3",
+            "hook_badge": "🏆 SAVE FLAT ₹8,500"
+        }
+    },
     {
         "asin": "B002MPPTB8",
         "title": "Hawkins Futura Hard Anodised Pressure Cooker 3L",
@@ -49,53 +77,22 @@ SAMPLE_DEALS = [
         "image_url": "https://m.media-amazon.com/images/I/71uQaPuz8jL._SL600_.jpg",
         "affiliate_url": "https://www.amazon.in/dp/B002MPPTB8?tag=dammaiprasad-21",
         "default_lang": "hi",
-        "default_voice": "hi-IN-MadhurNeural"
-    },
-    {
-        "asin": "BHARATBAZARO_RADAR",
-        "title": "BharatBazaro 24/7 AI Deal Radar for Amazon India",
-        "category": "Shopping & Deals",
-        "mrp": 9999,
-        "price": 0,
-        "discount": 100,
-        "savings": 9999,
-        "rating": 4.9,
-        "reviews": 15000,
-        "image_url": "https://m.media-amazon.com/images/I/71VjXyGfW2L._SL600_.jpg",
-        "affiliate_url": "https://bharatbazaro.com",
-        "default_lang": "en",
-        "default_voice": "en-IN-NeerjaNeural",
-        "custom_script": (
-            "Hey! Are you still searching Amazon for hours hoping to find a good deal? "
-            "Meet BharatBazaro — India's 24/7 AI Deal Radar. "
-            "It automatically scans thousands of Amazon India products every few minutes and finds real price drops, "
-            "hidden checkbox coupons, and even rare price errors. "
-            "Every deal comes with verified Keepa price history, so you know exactly how good the discount is. "
-            "Whether you want earbuds under 999 rupees, smartwatches, home appliances, or big brand loot — "
-            "BharatBazaro surfaces the best ones first. "
-            "Just visit bharatbazaro.com or join our VIP Telegram channel. "
-            "Stop overpaying. Start saving smarter. Link in bio!"
-        )
-    },
-    {
-        "asin": "B091CR2FXY",
-        "title": "AGARO Regency Air Fryer 12L 1800W",
-        "category": "Home & Kitchen",
-        "mrp": 15999,
-        "price": 7499,
-        "discount": 53,
-        "savings": 8500,
-        "rating": 4.5,
-        "reviews": 12800,
-        "image_url": "https://m.media-amazon.com/images/I/71VjXyGfW2L._SL600_.jpg",
-        "affiliate_url": "https://www.amazon.in/dp/B091CR2FXY?tag=dammaiprasad-21",
-        "default_lang": "hi",
-        "default_voice": "hi-IN-MadhurNeural"
+        "default_voice": "hi-IN-MadhurNeural",
+        "theme": {
+            "bg_color": (15, 23, 42),           # Slate Navy
+            "header_color": (220, 38, 38),       # Kitchen Crimson
+            "header_text": "💥 BHARATBAZARO KITCHEN LOOT 💥",
+            "price_box_color": (30, 41, 59),
+            "accent_color": (245, 158, 11),      # Amber
+            "badge_color": (234, 88, 12),
+            "bgm": "output001.mp3",
+            "hook_badge": "🔥 TOP RATED COOKER"
+        }
     },
     {
         "asin": "B09W2GFM7Y",
         "title": "Pigeon 1.8 Litre Stainless Steel Electric Kettle",
-        "category": "Home & Kitchen",
+        "category": "Hostel & Daily Essentials",
         "mrp": 1295,
         "price": 549,
         "discount": 58,
@@ -105,7 +102,17 @@ SAMPLE_DEALS = [
         "image_url": "https://m.media-amazon.com/images/I/71h6PpGaz9L._SL600_.jpg",
         "affiliate_url": "https://www.amazon.in/dp/B09W2GFM7Y?tag=dammaiprasad-21",
         "default_lang": "hi",
-        "default_voice": "hi-IN-SwaraNeural"
+        "default_voice": "hi-IN-SwaraNeural",
+        "theme": {
+            "bg_color": (30, 27, 75),           # Deep Indigo
+            "header_color": (234, 88, 12),      # Flame Orange
+            "header_text": "🔥 HOSTEL & HOME MUST-HAVE 🔥",
+            "price_box_color": (49, 46, 129),
+            "accent_color": (251, 191, 36),
+            "badge_color": (220, 38, 38),
+            "bgm": "output003.mp3",
+            "hook_badge": "⚡ 94,000+ REVIEWS"
+        }
     },
     {
         "asin": "B09NVPSCQT",
@@ -120,7 +127,17 @@ SAMPLE_DEALS = [
         "image_url": "https://m.media-amazon.com/images/I/51HBom8xz7L._SL600_.jpg",
         "affiliate_url": "https://www.amazon.in/dp/B09NVPSCQT?tag=dammaiprasad-21",
         "default_lang": "en",
-        "default_voice": "en-IN-PrabhatNeural"
+        "default_voice": "en-IN-PrabhatNeural",
+        "theme": {
+            "bg_color": (15, 23, 42),           # Cyber Slate
+            "header_color": (124, 58, 237),     # Electric Purple
+            "header_text": "🎧 UNDER ₹999 TECH LOOT 🎧",
+            "price_box_color": (24, 24, 27),
+            "accent_color": (6, 182, 212),      # Cyan
+            "badge_color": (147, 51, 234),
+            "bgm": "output004.mp3",
+            "hook_badge": "⚡ 50H BATTERY LIFE"
+        }
     },
     {
         "asin": "B0BY2W1H1S",
@@ -135,76 +152,102 @@ SAMPLE_DEALS = [
         "image_url": "https://m.media-amazon.com/images/I/61y2VVWcGBL._SL600_.jpg",
         "affiliate_url": "https://www.amazon.in/dp/B0BY2W1H1S?tag=dammaiprasad-21",
         "default_lang": "hi",
-        "default_voice": "hi-IN-MadhurNeural"
+        "default_voice": "hi-IN-MadhurNeural",
+        "theme": {
+            "bg_color": (19, 78, 74),           # Deep Teal
+            "header_color": (13, 148, 136),     # Teal
+            "header_text": "⌚ SMARTWATCH CRASH DEAL ⌚",
+            "price_box_color": (17, 94, 89),
+            "accent_color": (45, 212, 191),
+            "badge_color": (225, 29, 72),       # Rose
+            "bgm": "output005.mp3",
+            "hook_badge": "🔥 67% FLAT DISCOUNT"
+        }
     },
     {
         "asin": "B08F9G3Y8D",
         "title": "Philips All-in-One Multi Grooming Kit 9-in-1",
-        "category": "Personal Care",
+        "category": "Men's Grooming",
         "mrp": 2295,
         "price": 1449,
         "discount": 37,
         "savings": 846,
         "rating": 4.4,
         "reviews": 51200,
-        "image_url": "https://m.media-amazon.com/images/I/61K8Q-M2g8L._SL600_.jpg",
+        "image_url": "https://m.media-amazon.com/images/I/61Dff4DKHYL._AC_SL1500_.jpg",
         "affiliate_url": "https://www.amazon.in/dp/B08F9G3Y8D?tag=dammaiprasad-21",
         "default_lang": "en",
-        "default_voice": "en-IN-NeerjaNeural"
+        "default_voice": "en-IN-NeerjaNeural",
+        "theme": {
+            "bg_color": (24, 24, 27),           # Obsidian Black
+            "header_color": (37, 99, 235),      # Philips Royal Blue
+            "header_text": "✨ PHILIPS SALON PRECISION ✨",
+            "price_box_color": (39, 39, 42),
+            "accent_color": (96, 165, 250),
+            "badge_color": (217, 119, 6),
+            "bgm": "output006.mp3",
+            "hook_badge": "⭐ 9-IN-1 TRIMMER"
+        }
     },
     {
         "asin": "B09VDN3T3D",
         "title": "Portronics Power Bank 10000mAh 22.5W Fast Charging",
-        "category": "Mobile Accessories",
+        "category": "Mobile Tech & Power",
         "mrp": 1999,
         "price": 799,
         "discount": 60,
         "savings": 1200,
         "rating": 4.3,
         "reviews": 18900,
-        "image_url": "https://m.media-amazon.com/images/I/61Nl5zGZ3RL._SL600_.jpg",
+        "image_url": "https://m.media-amazon.com/images/I/71v7baeNrmL.jpg",
         "affiliate_url": "https://www.amazon.in/dp/B09VDN3T3D?tag=dammaiprasad-21",
         "default_lang": "hi",
-        "default_voice": "hi-IN-SwaraNeural"
+        "default_voice": "hi-IN-SwaraNeural",
+        "theme": {
+            "bg_color": (88, 28, 135),          # Royal Violet
+            "header_color": (219, 39, 119),     # Pink / Magenta
+            "header_text": "🔋 POCKET POWER BANK LOOT 🔋",
+            "price_box_color": (107, 33, 168),
+            "accent_color": (244, 114, 182),
+            "badge_color": (245, 158, 11),
+            "bgm": "output007.mp3",
+            "hook_badge": "⚡ 22.5W FAST CHARGE"
+        }
     },
     {
-        "asin": "B08HV2R8C2",
-        "title": "Wipro 16A Smart WiFi Plug with Energy Monitoring",
-        "category": "Smart Home",
-        "mrp": 1490,
-        "price": 649,
-        "discount": 56,
-        "savings": 841,
-        "rating": 4.2,
-        "reviews": 23400,
-        "image_url": "https://m.media-amazon.com/images/I/61m1R5p3NfL._SL600_.jpg",
-        "affiliate_url": "https://www.amazon.in/dp/B08HV2R8C2?tag=dammaiprasad-21",
-        "default_lang": "en",
-        "default_voice": "en-IN-PrabhatNeural"
-    },
-    {
-        "asin": "BHARATBAZARO_LOOT_ALERT",
-        "title": "Stop Paying Full Price on Amazon India! Loot Deal Alert",
-        "category": "Exclusive Deals",
-        "mrp": 4999,
-        "price": 999,
-        "discount": 80,
-        "savings": 4000,
+        "asin": "BHARATBAZARO_RADAR",
+        "title": "BharatBazaro 24/7 AI Deal Radar for Amazon India",
+        "category": "AI Deals & Cashback",
+        "mrp": 9999,
+        "price": 0,
+        "discount": 100,
+        "savings": 9999,
         "rating": 4.9,
-        "reviews": 42000,
-        "image_url": "https://m.media-amazon.com/images/I/71uQaPuz8jL._SL600_.jpg",
+        "reviews": 15000,
+        "image_url": None,  # Dynamically generated 3D Radar Graphic
         "affiliate_url": "https://bharatbazaro.com",
         "default_lang": "en",
         "default_voice": "en-IN-NeerjaNeural",
+        "theme": {
+            "bg_color": (2, 6, 23),             # Deep Cyber Void
+            "header_color": (14, 165, 233),     # Cyber Blue
+            "header_text": "🤖 BHARATBAZARO AI RADAR 🤖",
+            "price_box_color": (15, 23, 42),
+            "accent_color": (52, 211, 153),     # Emerald
+            "badge_color": (16, 185, 129),
+            "bgm": "output010.mp3",
+            "hook_badge": "🚀 100% FREE AI ACCESS"
+        },
         "custom_script": (
-            "Wait, don’t buy that on Amazon yet! "
-            "Did you know 80% of massive price drops and coupon glitches on Amazon India expire in under 30 minutes? "
-            "That’s why thousands of smart shoppers use BharatBazaro. "
-            "It’s an AI deal radar that scans Amazon India 24/7. "
-            "When branded cookware crashes, or premium electronics get a secret 60% checkbox coupon, "
-            "BharatBazaro alerts you immediately. "
-            "Every single deal is Keepa-verified — zero fake MRP markups, only real historic lows. "
-            "Stop wasting money. Visit bharatbazaro.com or tap the link in bio to join our VIP Telegram channel right now!"
+            "Stop scrolling and stop overpaying on Amazon India! "
+            "Meet BharatBazaro — India's 24/7 AI Deal Radar. "
+            "Our automated radar tracks thousands of Amazon products every few minutes, detecting real price crashes, "
+            "hidden 50% checkbox coupons, and rare lightning deals before they expire. "
+            "Every single deal is Keepa-verified — zero fake discounts, only genuine historic lows. "
+            "Whether you're shopping for earbuds, smartwatches, pressure cookers, or air fryers, "
+            "BharatBazaro surfaces the biggest savings first. "
+            "Visit bharatbazaro.com or tap the link in our bio to join our VIP channel for instant alerts. "
+            "Shop smarter, save bigger!"
         )
     }
 ]
@@ -224,64 +267,138 @@ def get_font(size: int, bold: bool = False):
                 continue
     return ImageFont.load_default()
 
-def download_product_image(url: str, asin: str) -> Path:
+def generate_radar_graphic(output_path: Path):
+    """Generate high-tech 3D Radar graphic for BharatBazaro promo."""
+    w, h = 800, 760
+    img = Image.new("RGBA", (w, h), (15, 23, 42, 255))
+    draw = ImageDraw.Draw(img)
+
+    center_x, center_y = w // 2, h // 2
+    for r in [80, 160, 240, 320]:
+        draw.ellipse([center_x - r, center_y - r, center_x + r, center_y + r], outline=(30, 58, 138), width=3)
+    
+    draw.line([center_x - 340, center_y, center_x + 340, center_y], fill=(30, 58, 138), width=2)
+    draw.line([center_x, center_y - 340, center_x, center_y + 340], fill=(30, 58, 138), width=2)
+
+    blips = [(center_x + 120, center_y - 80), (center_x - 140, center_y + 110), (center_x + 60, center_y + 180)]
+    for bx, by in blips:
+        draw.ellipse([bx - 14, by - 14, bx + 14, by + 14], fill=(16, 185, 129, 100))
+        draw.ellipse([bx - 7, by - 7, bx + 7, by + 7], fill=(52, 211, 153, 255))
+
+    draw.ellipse([center_x - 70, center_y - 70, center_x + 70, center_y + 70], fill=(14, 165, 233), outline=(255, 255, 255), width=4)
+    draw.text((center_x - 30, center_y - 35), "AI", fill=(255, 255, 255), font=get_font(52, bold=True))
+
+    draw.rounded_rectangle([100, h - 90, w - 100, h - 30], radius=15, fill=(16, 185, 129))
+    draw.text((130, h - 75), "🟢 RADAR ACTIVE: SCANNING AMAZON INDIA", fill=(255, 255, 255), font=get_font(24, bold=True))
+
+    img.save(output_path, "PNG")
+    return output_path
+
+def download_product_image(url: str, asin: str, deal_title: str) -> Path:
     """Download Amazon product image or return cached image."""
     local_path = CACHE_DIR / f"{asin}.jpg"
-    if local_path.exists() and local_path.stat().st_size > 5000:
+    
+    if asin == "BHARATBAZARO_RADAR":
+        radar_path = CACHE_DIR / "radar_graphic.png"
+        if not radar_path.exists():
+            generate_radar_graphic(radar_path)
+        return radar_path
+
+    # Check if a genuine image exists in cache (>15KB)
+    if local_path.exists() and local_path.stat().st_size > 15000:
         return local_path
     
-    try:
-        resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-        if resp.status_code == 200:
-            with open(local_path, "wb") as f:
-                f.write(resp.content)
-            return local_path
-    except Exception as e:
-        print(f"Warning: Failed to download image from {url}: {e}")
+    # Attempt download from URL if provided
+    if url:
+        try:
+            resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+            if resp.status_code == 200 and len(resp.content) > 10000:
+                with open(local_path, "wb") as f:
+                    f.write(resp.content)
+                return local_path
+        except Exception as e:
+            print(f"Warning: Failed to download from {url}: {e}")
     
-    # Generate placeholder if download fails
-    placeholder = Image.new("RGB", (600, 600), color=(240, 243, 246))
+    # Dynamic Search Resolver fallback (Amazon / Bing / Web)
+    print(f"  🔍 Resolving live image for {deal_title}...")
+    try:
+        query = f"{deal_title} amazon india product"
+        b_url = f"https://www.bing.com/images/search?q={urllib.parse.quote(query)}&FORM=HDRSC2"
+        req = urllib.request.Request(b_url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0'})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            html = r.read().decode('utf-8', errors='ignore')
+            murls = re.findall(r'murl&quot;:&quot;(http[^&]+)&quot;', html)
+            candidates = [u for u in murls if 'media-amazon' in u] + murls
+            for c in candidates:
+                try:
+                    res = requests.get(c, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                    if res.status_code == 200 and len(res.content) > 15000:
+                        with open(local_path, "wb") as f:
+                            f.write(res.content)
+                        print(f"  ✓ Resolved & saved {len(res.content)} bytes from {c[:60]}...")
+                        return local_path
+                except Exception:
+                    continue
+    except Exception as exc:
+        print(f"  Search fallback failed: {exc}")
+
+    # Fallback placeholder if all network fails
+    placeholder = Image.new("RGB", (600, 600), color=(30, 41, 59))
     draw = ImageDraw.Draw(placeholder)
-    draw.text((150, 280), "BHARATBAZARO DEALS", fill=(100, 116, 139), font=get_font(28, bold=True))
+    draw.text((120, 280), "BHARATBAZARO DEALS", fill=(255, 255, 255), font=get_font(32, bold=True))
     placeholder.save(local_path)
     return local_path
 
 def create_slide_image(deal: dict, slide_idx: int) -> Path:
     """
     Generate professional 1080x1920 (9:16 vertical) deal visual card.
-    Slide 0: Hook & Massive Price Drop
-    Slide 1: Social Proof & Key Features
-    Slide 2: Urgent Scarcity & Call-to-Action
+    Uses unique colors, badges, and layout tailored to each specific product theme.
     """
     width, height = 1080, 1920
-    # Premium gradient background (Dark Obsidian / Slate)
-    img = Image.new("RGB", (width, height), color=(11, 15, 25))
+    theme = deal.get("theme", {})
+    bg_color = theme.get("bg_color", (11, 15, 25))
+    header_color = theme.get("header_color", (220, 38, 38))
+    accent_color = theme.get("accent_color", (52, 211, 153))
+    price_box_color = theme.get("price_box_color", (24, 32, 47))
+    badge_color = theme.get("badge_color", (234, 88, 12))
+
+    img = Image.new("RGB", (width, height), color=bg_color)
     draw = ImageDraw.Draw(img)
 
     # 1. Top Header Pill
-    draw.rounded_rectangle([(80, 80), (1000, 180)], radius=30, fill=(220, 38, 38))
-    header_text = "💥 BHARATBAZARO LOOT RADAR 💥" if slide_idx == 0 else "⭐ TOP VERIFIED AMAZON DEAL ⭐" if slide_idx == 1 else "⚡ HURRY - LIMITED TIME ONLY ⚡"
-    h_font = get_font(38, bold=True)
-    draw.text((120, 105), header_text, fill=(255, 255, 255), font=h_font)
+    draw.rounded_rectangle([(80, 80), (1000, 180)], radius=30, fill=header_color)
+    if slide_idx == 0:
+        header_text = theme.get("header_text", "💥 BHARATBAZARO LOOT RADAR 💥")
+    elif slide_idx == 1:
+        header_text = "⭐ KEEP-A VERIFIED LOWEST PRICE ⭐"
+    else:
+        header_text = "⚡ HURRY - LIMITED TIME ONLY ⚡"
+    
+    h_font = get_font(36, bold=True)
+    draw.text((110, 108), header_text, fill=(255, 255, 255), font=h_font)
 
-    # 2. Product Image Container (White Card with Drop Shadow)
+    # 2. Product Image Container (Clean White Card with Drop Shadow)
     draw.rounded_rectangle([(100, 240), (980, 1080)], radius=40, fill=(255, 255, 255))
     
     # Load and paste product image
-    img_path = download_product_image(deal["image_url"], deal["asin"])
+    img_path = download_product_image(deal.get("image_url"), deal["asin"], deal["title"])
     try:
         p_img = Image.open(img_path).convert("RGBA")
         p_img.thumbnail((800, 760), Image.Resampling.LANCZOS)
         offset_x = 100 + (880 - p_img.width) // 2
-        offset_y = 260 + (800 - p_img.height) // 2
+        offset_y = 240 + (840 - p_img.height) // 2
         img.paste(p_img, (offset_x, offset_y), p_img)
     except Exception as e:
         print(f"Error drawing product image: {e}")
 
-    # Discount Badge Overlaid on Product Card (top-right)
-    draw.rounded_rectangle([(720, 260), (960, 360)], radius=20, fill=(234, 88, 12))
-    draw.text((750, 280), f"-{deal['discount']}%", fill=(255, 255, 255), font=get_font(48, bold=True))
-    draw.text((770, 330), "OFF", fill=(255, 255, 255), font=get_font(24, bold=True))
+    # Discount / Hook Badge Overlaid on Product Card (top-right)
+    draw.rounded_rectangle([(700, 260), (960, 360)], radius=20, fill=badge_color)
+    if deal.get("discount", 0) > 0 and deal["price"] > 0:
+        draw.text((730, 280), f"-{deal['discount']}%", fill=(255, 255, 255), font=get_font(48, bold=True))
+        draw.text((750, 330), "OFF", fill=(255, 255, 255), font=get_font(24, bold=True))
+    else:
+        draw.text((720, 290), "FREE", fill=(255, 255, 255), font=get_font(42, bold=True))
+        draw.text((730, 332), "ACCESS", fill=(255, 255, 255), font=get_font(20, bold=True))
 
     # 3. Product Title (Two lines max)
     title = deal["title"]
@@ -299,7 +416,7 @@ def create_slide_image(deal: dict, slide_idx: int) -> Path:
 
     # 4. Pricing Box
     box_y = 1270
-    draw.rounded_rectangle([(80, box_y), (1000, box_y + 260)], radius=30, fill=(24, 32, 47))
+    draw.rounded_rectangle([(80, box_y), (1000, box_y + 260)], radius=30, fill=price_box_color)
     
     # Strikethrough MRP
     if deal['mrp'] > 0:
@@ -307,22 +424,28 @@ def create_slide_image(deal: dict, slide_idx: int) -> Path:
         draw.line([(115, box_y + 55), (380, box_y + 55)], fill=(239, 68, 68), width=4)
 
     # Big Deal Price
-    price_text = f"Deal Price: ₹{deal['price']:,}" if deal['price'] > 0 else "Free AI Radar Access"
-    draw.text((120, box_y + 85), price_text, fill=(52, 211, 153), font=get_font(68, bold=True))
+    if deal['price'] > 0:
+        price_text = f"Deal Price: ₹{deal['price']:,}"
+    else:
+        price_text = "100% Free AI Deal Radar"
+    draw.text((120, box_y + 85), price_text, fill=accent_color, font=get_font(68, bold=True))
 
     # Savings Pill
     draw.rounded_rectangle([(120, box_y + 185), (650, box_y + 240)], radius=15, fill=(16, 185, 129))
-    savings_text = f"YOU SAVE FLAT ₹{deal['savings']:,} ({deal['discount']}% OFF)" if deal['savings'] > 0 else "100% FREE UNLIMITED DEALS"
+    if deal['savings'] > 0 and deal['price'] > 0:
+        savings_text = f"YOU SAVE FLAT ₹{deal['savings']:,} ({deal['discount']}% OFF)"
+    else:
+        savings_text = "UNLIMITED FREE DEALS 24/7"
     draw.text((140, box_y + 195), savings_text, fill=(255, 255, 255), font=get_font(26, bold=True))
 
     # 5. Social Proof / Ratings
     rating_y = 1570
-    draw.text((100, rating_y), f"⭐ {deal['rating']} / 5.0 Rating  |  {deal['reviews']:,}+ Happy Users", fill=(251, 191, 36), font=get_font(34, bold=True))
+    draw.text((100, rating_y), f"⭐ {deal['rating']} / 5.0 Rating  |  {deal['reviews']:,}+ Verified Buyers", fill=(251, 191, 36), font=get_font(34, bold=True))
 
     # 6. Bottom Call to Action Banner
     draw.rounded_rectangle([(80, 1660), (1000, 1840)], radius=30, fill=(37, 99, 235))
     cta_title = "👇 TAP LINK IN BIO / COMMENT 👇" if slide_idx != 2 else "🚀 JOIN WHATSAPP & TELEGRAM VIP"
-    cta_sub = "Verified Amazon India Affiliate Link" if slide_idx != 2 else "Visit BharatBazaro.com for daily loot deals"
+    cta_sub = "Verified Amazon India Affiliate Link" if slide_idx != 2 else "Visit BharatBazaro.com for daily loot drops"
     draw.text((130, 1700), cta_title, fill=(255, 255, 255), font=get_font(38, bold=True))
     draw.text((220, 1765), cta_sub, fill=(219, 234, 254), font=get_font(28))
 
@@ -343,28 +466,30 @@ def build_deal_script(deal: dict, language: str = "en") -> str:
 
     if language == "hi":
         return (
-            f"Amazon India par loot deal alert! "
+            f"Amazon India par zabardast loot deal alert! "
             f"{deal['title']} jiska original MRP {deal['mrp']} rupaye hai, "
             f"aaj mil raha hai flat {deal['discount']} percent discount par, sirf {deal['price']} rupaye mein! "
             f"Aapki seedhi bachat hogi {deal['savings']} rupaye ki! "
-            f"4.4 star rating aur hazaaron verified customer reviews ke saath ye deal limited time ke liye hai. "
-            f"Abhi buy karne ke liye bio ya comment section mein link check karein, "
-            f"aur rozaana aisi loot deals ke liye BharatBazaro ko follow karein!"
+            f"{deal['rating']} star rating aur {deal['reviews']:,} se zyaada customer reviews ke saath ye deal limited time ke liye hai. "
+            f"Abhi buy karne ke liye bio ya comment section mein affiliate link check karein, "
+            f"aur rozaana aisi price drops ke liye BharatBazaro ko follow karein!"
         )
     else:
         return (
             f"Loot Deal Alert on Amazon India! "
-            f"The popular {deal['title']} with MRP {deal['mrp']} rupees, "
+            f"The top-selling {deal['title']} with MRP {deal['mrp']} rupees, "
             f"is crashing today at a massive {deal['discount']} percent discount, for just {deal['price']} rupees! "
             f"You save a flat {deal['savings']} rupees instantly! "
-            f"Rated {deal['rating']} stars with over {deal['reviews']:,} reviews. "
-            f"This lightning deal won't last long. "
-            f"Tap the affiliate link in our bio or comments to order now, and join BharatBazaro for daily loot alerts!"
+            f"Rated {deal['rating']} stars with over {deal['reviews']:,} verified reviews. "
+            f"This price drop won't last long. "
+            f"Tap the affiliate link in our bio or comments to order now, and join BharatBazaro for daily loot deals!"
         )
 
 def get_audio_duration(audio_file: Path) -> float:
-    """Use FFmpeg to inspect audio duration."""
-    cmd = [FFMPEG_EXE, "-i", str(audio_file)]
+    """Use FFprobe / FFmpeg to inspect audio duration."""
+    cmd = [
+        FFMPEG_EXE, "-i", str(audio_file)
+    ]
     res = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
     for line in res.stderr.splitlines():
         if "Duration:" in line:
@@ -376,7 +501,7 @@ def get_audio_duration(audio_file: Path) -> float:
 def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, output_video: Path):
     """
     Assemble high-production 9:16 vertical video using FFmpeg.
-    Adds smooth Ken-Burns pan/zoom and mixes narration with background music.
+    Adds smooth Ken-Burns pan/zoom and mixes narration with unique background music.
     """
     total_duration = get_audio_duration(audio_path)
     slide_duration = total_duration / len(slides)
@@ -388,11 +513,13 @@ def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, outpu
         clip_path = OUTPUT_DIR / f"{deal['asin']}_clip_{idx}.mp4"
         frames = int(slide_duration * fps)
         
-        # Smooth zoom in/out effect
-        if idx % 2 == 0:
+        # Alternate zoom styles for unique feel
+        if idx == 0:
             zoom_filter = f"zoompan=z='min(zoom+0.0010,1.10)':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps={fps}"
-        else:
+        elif idx == 1:
             zoom_filter = f"zoompan=z='if(lte(zoom,1.0),1.10,max(1.0,zoom-0.0010))':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps={fps}"
+        else:
+            zoom_filter = f"zoompan=z='min(zoom+0.0008,1.08)':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)+15':s=1080x1920:fps={fps}"
 
         cmd = [
             FFMPEG_EXE, "-y",
@@ -424,10 +551,15 @@ def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, outpu
     ]
     subprocess.run(cmd_concat, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
-    # 3. Check for background music
-    bgm_path = BASE_DIR / "resource" / "songs" / "output001.mp3"
+    # 3. Check for specific background music for this deal
+    theme = deal.get("theme", {})
+    bgm_filename = theme.get("bgm", "output001.mp3")
+    bgm_path = BASE_DIR / "resource" / "songs" / bgm_filename
+    if not bgm_path.exists():
+        bgm_path = BASE_DIR / "resource" / "songs" / "output001.mp3"
     
     if bgm_path.exists():
+        # Mix narration (100% volume) + BGM (12% volume ducked)
         filter_complex = (
             f"[1:a]volume=1.0[voice];"
             f"[2:a]volume=0.12,aloop=loop=-1:size=2e+09[bgm];"
@@ -464,64 +596,67 @@ def assemble_short_video(deal: dict, slides: list[Path], audio_path: Path, outpu
     subprocess.run(cmd_final, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     return output_video
 
-def generate_single_deal_video(deal: dict, lang: str = None, voice: str = None):
-    """Orchestrates generation of one complete video short."""
+def generate_single_video(deal: dict, lang: str = None, voice: str = None) -> Path:
+    """Generate one complete unique video for a deal."""
     lang = lang or deal.get("default_lang", "hi")
-    voice = voice or deal.get("default_voice", "hi-IN-MadhurNeural" if lang == "hi" else "en-IN-PrabhatNeural")
-    output_video = OUTPUT_DIR / f"bharatbazaro_{deal['asin']}_{lang}.mp4"
+    voice = voice or deal.get("default_voice")
+    if not voice:
+        voice = "hi-IN-MadhurNeural" if lang == "hi" else "en-IN-PrabhatNeural"
 
     print(f"\n=======================================================")
-    print(f"🎬 Generating: {deal['title']}")
+    print(f"🎬 Generating UNIQUE Short: {deal['title']}")
     print(f"💰 Deal: ₹{deal['price']:,} (MRP: ₹{deal['mrp']:,} | -{deal['discount']}%)")
-    print(f"🎙️ Voice: {voice} ({lang.upper()})")
+    print(f"🎨 Theme: {deal.get('theme', {}).get('header_text', 'Default')} | Voice: {voice}")
     print(f"=======================================================")
 
-    if output_video.exists() and output_video.stat().st_size > 1000000:
-        print(f"  ⚡ Video already generated at: {output_video.name} (Skipping re-render)")
-        return output_video
-
-    # 1. Slides
+    # Step 1: Visual Cards
+    print("[1/4] 🎨 Designing 1080x1920 (9:16) Unique Visual Cards...")
     slides = [create_slide_image(deal, i) for i in range(3)]
-    
-    # 2. Voice
+    for s in slides:
+        print(f"  ✓ Created {s.name}")
+
+    # Step 2: Voiceover
+    print(f"[2/4] 🎙️ Synthesizing Voiceover ({voice})...")
     script_text = build_deal_script(deal, lang)
     audio_path = OUTPUT_DIR / f"{deal['asin']}_voice.mp3"
     asyncio.run(generate_narration(script_text, voice, audio_path))
     duration = get_audio_duration(audio_path)
-    print(f"  ✓ Narration ready: {duration:.1f}s")
+    print(f"  ✓ Voice complete ({duration:.1f}s)")
 
-    # 3. Assemble
+    # Step 3: Video Assembly
+    output_video = OUTPUT_DIR / f"bharatbazaro_{deal['asin']}_{lang}.mp4"
+    print(f"[3/4] 🎞️ Assembling Final HD Video with Ken Burns Zoom & BGM...")
     assemble_short_video(deal, slides, audio_path, output_video)
+
+    # Step 4: Verification
     size_mb = output_video.stat().st_size / (1024 * 1024)
-    print(f"  ✅ Render complete: {output_video.name} ({size_mb:.2f} MB | {duration:.1f}s)")
+    print(f"[4/4] ✅ Done: {output_video.name} ({size_mb:.2f} MB, {duration:.1f}s)")
     return output_video
 
 def main():
     parser = argparse.ArgumentParser(description="Generate 100% Free BharatBazaro Deal Videos")
-    parser.add_argument("--asin", type=str, default="", help="Single ASIN to generate")
-    parser.add_argument("--all", action="store_true", help="Generate all 10 curated daily videos")
-    parser.add_argument("--lang", type=str, default="", choices=["", "en", "hi"], help="Voice language override")
-    parser.add_argument("--voice", type=str, default="", help="Edge TTS voice override")
+    parser.add_argument("--asin", type=str, default="", help="Amazon ASIN (default: first deal)")
+    parser.add_argument("--lang", type=str, default="", choices=["", "en", "hi"], help="Voice language")
+    parser.add_argument("--voice", type=str, default="", help="Edge TTS voice name")
+    parser.add_argument("--all", action="store_true", help="Generate unique videos for ALL curated deals")
     args = parser.parse_args()
 
     if args.all:
-        print("\n" + "="*60)
-        print("🚀 BATCH GENERATING ALL 10 DAILY BHARATBAZARO VIDEOS")
-        print("="*60)
-        completed = []
-        for idx, deal in enumerate(SAMPLE_DEALS, 1):
-            print(f"\n[{idx}/10] Processing {deal['asin']}...")
-            v = generate_single_deal_video(deal, lang=args.lang or None, voice=args.voice or None)
-            completed.append(v)
-        print("\n" + "="*60)
-        print(f"🎉 ALL 10 VIDEOS READY IN {OUTPUT_DIR.resolve()}")
-        print("="*60)
-        for idx, v in enumerate(completed, 1):
-            print(f"  {idx}. {v.name} ({v.stat().st_size / (1024*1024):.2f} MB)")
-    else:
-        asin = args.asin or SAMPLE_DEALS[0]["asin"]
-        deal = next((d for d in SAMPLE_DEALS if d["asin"] == asin), SAMPLE_DEALS[0])
-        generate_single_deal_video(deal, lang=args.lang or None, voice=args.voice or None)
+        print(f"\n🚀 Generating Unique Videos for ALL {len(SAMPLE_DEALS)} Curated Deals...")
+        generated = []
+        for d in SAMPLE_DEALS:
+            vid = generate_single_video(d)
+            generated.append(vid)
+        print(f"\n🎉 Successfully Generated {len(generated)} Unique Videos!")
+        for g in generated:
+            print(f"  📍 {g.resolve()}")
+        return
+
+    # Single deal mode
+    asin = args.asin or "B091CR2FXY"
+    deal = next((d for d in SAMPLE_DEALS if d["asin"] == asin), SAMPLE_DEALS[0])
+    lang = args.lang or deal.get("default_lang", "en")
+    generate_single_video(deal, lang=lang, voice=args.voice)
 
 if __name__ == "__main__":
     main()
