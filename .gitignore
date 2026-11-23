@@ -45,3 +45,9 @@ htmlcov/
 
 # Claude Code 订阅令牌（docker compose 自动读取），禁止提交
 .env
+
+# Generated deal videos & temporary files
+output/
+test_audio.mp3
+test_slide.jpg
+
