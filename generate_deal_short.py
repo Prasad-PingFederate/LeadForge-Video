@@ -689,7 +689,73 @@ async def generate_narration(script_text: str, voice: str, output_path: Path):
                 print(f"Warning: Edge TTS attempt {attempt}/3 failed for voice {attempt_voice}: {e}")
                 await asyncio.sleep(2 * attempt)
 
-    # Ultimate fail-safe fallback: gTTS (Google Text-to-Speech, zero API keys, no rate-limiting)
+    # Tier 2 fallback: Goonj-1-82M Indian Voice Generator (if cloned locally)
+    goonj_script = BASE_DIR / "goonj-1-82M" / "kokoro_generate.py"
+    if not goonj_script.exists():
+        goonj_script = BASE_DIR / "kokoro_generate.py"
+    if goonj_script.exists():
+        try:
+            print("Falling back to local Goonj-1-82M Indian Voice Generator...")
+            wav_output = output_path.with_suffix(".wav")
+            persona = "meera" if ("hi" in voice.lower() or "hindi" in voice.lower()) else "en_priya"
+            cmd = [
+                sys.executable, str(goonj_script),
+                "--persona", persona,
+                "--text", clean_text,
+                "--out", str(wav_output)
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(goonj_script.parent))
+            if res.returncode == 0 and wav_output.exists():
+                ffmpeg_exe = get_ffmpeg_binary()
+                subprocess.run(
+                    [ffmpeg_exe, "-y", "-i", str(wav_output), "-codec:a", "libmp3lame", "-qscale:a", "2", str(output_path)],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                if output_path.exists() and output_path.stat().st_size > 1000:
+                    print("  ✓ Voice generated successfully via Goonj-1-82M.")
+                    return
+        except Exception as ge_err:
+            print(f"Warning: Goonj-1-82M execution failed: {ge_err}")
+
+    # Tier 3 fallback: Kokoro-ONNX / Piper-TTS (Local Offline ONNX Engine)
+    try:
+        from kokoro_onnx import Kokoro
+        import soundfile as sf
+        print("Falling back to Kokoro-ONNX Local Engine...")
+        kokoro_model_path = CACHE_DIR / "kokoro-v0_19.onnx"
+        kokoro_voices_path = CACHE_DIR / "voices.json"
+        if not kokoro_model_path.exists():
+            km_url = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/kokoro-v0_19.onnx"
+            kv_url = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/voices.json"
+            r_km = requests.get(km_url, timeout=35)
+            r_kv = requests.get(kv_url, timeout=15)
+            if r_km.status_code == 200 and r_kv.status_code == 200:
+                with open(kokoro_model_path, "wb") as f:
+                    f.write(r_km.content)
+                with open(kokoro_voices_path, "wb") as f:
+                    f.write(r_kv.content)
+
+        if kokoro_model_path.exists() and kokoro_voices_path.exists():
+            kokoro = Kokoro(str(kokoro_model_path), str(kokoro_voices_path))
+            samples, sample_rate = kokoro.create(clean_text, voice="af_sarah", speed=1.0, lang="en-us")
+            wav_output = output_path.with_suffix(".wav")
+            sf.write(str(wav_output), samples, sample_rate)
+            ffmpeg_exe = get_ffmpeg_binary()
+            subprocess.run(
+                [ffmpeg_exe, "-y", "-i", str(wav_output), "-codec:a", "libmp3lame", "-qscale:a", "2", str(output_path)],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            if output_path.exists() and output_path.stat().st_size > 1000:
+                print("  ✓ Voice generated successfully via Kokoro-ONNX.")
+                return
+    except Exception as ke:
+        pass
+
+    # Tier 4 fallback: gTTS (Google Text-to-Speech, zero API keys, no rate-limiting)
     try:
         from gtts import gTTS
         print("Falling back to gTTS (Google TTS Engine)...")
