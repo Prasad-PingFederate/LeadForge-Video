@@ -501,7 +501,7 @@ def generate_radar_graphic(output_path: Path):
     img.save(output_path, "PNG")
     return output_path
 
-def download_product_image(url: str, asin: str, deal_title: str) -> Path:
+def download_product_image(url: str, asin: str, deal_title: str):
     """Download Amazon product image or return cached image."""
     local_path = CACHE_DIR / f"{asin}.jpg"
     
@@ -518,15 +518,33 @@ def download_product_image(url: str, asin: str, deal_title: str) -> Path:
     # Download directly from URL if provided
     if url:
         try:
-            resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-            if resp.status_code == 200 and len(resp.content) > 15000:
+            resp = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+            if resp.status_code == 200 and len(resp.content) > 10000:
                 with open(local_path, "wb") as f:
                     f.write(resp.content)
                 return local_path
         except Exception as e:
-            print(f"Warning: Failed to download from {url}: {e}")
+            print(f"Warning: Failed to download product image from {url}: {e}")
     
-    return local_path
+    # Fallback to direct Amazon image CDN endpoints if ASIN is known
+    if asin and not asin.startswith("BHARATBAZARO"):
+        for template in [
+            f"https://images-na.ssl-images-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg",
+            f"https://m.media-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_.jpg"
+        ]:
+            try:
+                resp = requests.get(template, timeout=10, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                if resp.status_code == 200 and len(resp.content) > 12000:
+                    with open(local_path, "wb") as f:
+                        f.write(resp.content)
+                    return local_path
+            except Exception:
+                pass
+
+    if local_path.exists() and local_path.stat().st_size > 5000:
+        return local_path
+
+    return None
 
 def create_slide_image(deal: dict, slide_idx: int) -> Path:
     """
@@ -561,14 +579,19 @@ def create_slide_image(deal: dict, slide_idx: int) -> Path:
     
     # Load and paste product image
     img_path = download_product_image(deal.get("image_url"), deal["asin"], deal["title"])
-    try:
-        p_img = Image.open(img_path).convert("RGBA")
-        p_img.thumbnail((800, 760), Image.Resampling.LANCZOS)
-        offset_x = 100 + (880 - p_img.width) // 2
-        offset_y = 240 + (840 - p_img.height) // 2
-        img.paste(p_img, (offset_x, offset_y), p_img)
-    except Exception as e:
-        print(f"Error drawing product image: {e}")
+    if img_path and Path(img_path).exists():
+        try:
+            p_img = Image.open(img_path).convert("RGBA")
+            p_img.thumbnail((800, 760), Image.Resampling.LANCZOS)
+            offset_x = 100 + (880 - p_img.width) // 2
+            offset_y = 240 + (840 - p_img.height) // 2
+            img.paste(p_img, (offset_x, offset_y), p_img)
+        except Exception as e:
+            print(f"Error drawing product image: {e}")
+    else:
+        # Fallback card text placeholder when image is unavailable
+        cat_text = (deal.get("category") or "AMAZON HOT DEAL").upper()
+        draw.text((220, 600), f"🔥 {cat_text[:28]} 🔥", fill=(156, 163, 175), font=get_font(34, bold=True))
 
     # Discount / Hook Badge Overlaid on Product Card (top-right)
     draw.rounded_rectangle([(700, 260), (960, 360)], radius=20, fill=badge_color)
@@ -637,10 +660,49 @@ def create_slide_image(deal: dict, slide_idx: int) -> Path:
     return slide_path
 
 async def generate_narration(script_text: str, voice: str, output_path: Path):
-    """Generate audio using free Microsoft Edge TTS."""
+    """Generate audio using Microsoft Edge TTS with retries and fallback voices."""
     import edge_tts
-    communicate = edge_tts.Communicate(script_text, voice)
-    await communicate.save(str(output_path))
+
+    # Sanitize characters that can cause synthesis hiccups on Edge TTS
+    clean_text = re.sub(r'[@#*_~`]', ' ', script_text)
+    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+
+    # Prioritize caller's voice, followed by stable Indian neural voices
+    fallback_voices = [
+        voice,
+        "hi-IN-SwaraNeural" if "Madhur" in voice else "hi-IN-MadhurNeural",
+        "en-IN-PrabhatNeural",
+        "en-IN-NeerjaNeural"
+    ]
+    candidate_voices = list(dict.fromkeys([v for v in fallback_voices if v]))
+
+    last_error = None
+    for attempt_voice in candidate_voices:
+        for attempt in range(1, 4):
+            try:
+                communicate = edge_tts.Communicate(clean_text, attempt_voice)
+                await communicate.save(str(output_path))
+                if output_path.exists() and output_path.stat().st_size > 1000:
+                    return
+            except Exception as e:
+                last_error = e
+                print(f"Warning: Edge TTS attempt {attempt}/3 failed for voice {attempt_voice}: {e}")
+                await asyncio.sleep(2 * attempt)
+
+    # Ultimate fail-safe fallback: gTTS (Google Text-to-Speech, zero API keys, no rate-limiting)
+    try:
+        from gtts import gTTS
+        print("Falling back to gTTS (Google TTS Engine)...")
+        glang = "hi" if ("hi" in voice.lower() or "hindi" in voice.lower()) else "en"
+        tts = gTTS(text=clean_text, lang=glang, slow=False)
+        tts.save(str(output_path))
+        if output_path.exists() and output_path.stat().st_size > 1000:
+            print("  ✓ Voice generated successfully via gTTS fallback.")
+            return
+    except Exception as ge:
+        print(f"Warning: gTTS fallback also failed: {ge}")
+
+    raise RuntimeError(f"Failed to generate TTS narration after multiple retries across voices and fallbacks: {last_error}")
 
 def build_deal_script(deal: dict, language: str = "en") -> str:
     """Compose punchy Hook-Story-Offer script tailored to 20-30s Short."""
@@ -818,6 +880,20 @@ def generate_single_video(deal: dict, lang: str = None, voice: str = None) -> Pa
 
     # Step 5: Companion Caption Generation
     generate_caption_file(deal, output_video)
+
+    # Step 6: Automatically sync to local Downloads/Video folder if present
+    downloads_video_dir = Path(r"C:\Users\prasad.dammai\Downloads\Video")
+    if downloads_video_dir.exists():
+        try:
+            import shutil
+            shutil.copy2(output_video, downloads_video_dir / output_video.name)
+            cap_file = output_video.with_suffix(".txt")
+            if cap_file.exists():
+                shutil.copy2(cap_file, downloads_video_dir / cap_file.name)
+            print(f"  📥 Copied to Downloads: {downloads_video_dir / output_video.name}")
+        except Exception as e:
+            print(f"Warning: Failed to copy to Downloads/Video: {e}")
+
     return output_video
 
 def main():

@@ -40,7 +40,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests pillow edge-tts imageio-ffmpeg
+          pip install --upgrade requests pillow "edge-tts>=6.1.12" piper-tts gtts imageio-ffmpeg
 
       - name: Render Top Deal Shorts from Queue
         run: |
