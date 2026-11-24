@@ -1,6 +1,8 @@
 name: Auto Render 9:16 Deal Shorts
 
 on:
+  schedule:
+    - cron: '35 13 * * *' # Daily at 6:35 PM IST (13:35 UTC)
   repository_dispatch:
     types: [render_top_deals]
   workflow_dispatch:
