@@ -18,6 +18,8 @@ import json
 import urllib.request
 import urllib.parse
 import re
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -27,15 +29,27 @@ OUTPUT_DIR = BASE_DIR / "output"
 OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 CACHE_DIR = BASE_DIR / "storage" / "deal_cache"
 CACHE_DIR.mkdir(exist_ok=True, parents=True)
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True, parents=True)
+STATE_FILE = DATA_DIR / "rendered_asins.json"
 
 # FFmpeg binary detection
-FFMPEG_EXE = r"C:\Users\prasad.dammai\AppData\Roaming\Python\Python315\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v9.0.2.exe"
-if not Path(FFMPEG_EXE).exists():
+def get_ffmpeg_binary():
+    import shutil
+    which_ffmpeg = shutil.which("ffmpeg")
+    if which_ffmpeg:
+        return which_ffmpeg
     try:
         import imageio_ffmpeg
-        FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
+        return imageio_ffmpeg.get_ffmpeg_exe()
     except Exception:
-        FFMPEG_EXE = "ffmpeg"
+        pass
+    hardcoded = r"C:\Users\prasad.dammai\AppData\Roaming\Python\Python315\site-packages\imageio_ffmpeg\binaries\ffmpeg-win-x86_64-v9.0.2.exe"
+    if Path(hardcoded).exists():
+        return hardcoded
+    return "ffmpeg"
+
+FFMPEG_EXE = get_ffmpeg_binary()
 
 # Curated High-Converting Deals with 100% Verified Amazon Images, Themes, Voices & Music
 SAMPLE_DEALS = [
@@ -252,12 +266,205 @@ SAMPLE_DEALS = [
     }
 ]
 
+# Theme Presets for Dynamic Queue Deals
+THEME_PRESETS = [
+    {
+        "bg_color": (30, 27, 75),       # Deep Indigo
+        "header_color": (234, 88, 12),  # Flame Orange
+        "header_text": "🔥 TOP AMAZON LOOT DEAL 🔥",
+        "price_box_color": (49, 46, 129),
+        "accent_color": (251, 191, 36),
+        "badge_color": (220, 38, 38),
+        "bgm": "output003.mp3",
+        "hook_badge": "⚡ BIGGEST PRICE CRASH"
+    },
+    {
+        "bg_color": (24, 24, 27),       # Obsidian Black
+        "header_color": (37, 99, 235),  # Royal Blue
+        "header_text": "⚡ KEEPA VERIFIED PRICE DROP ⚡",
+        "price_box_color": (39, 39, 42),
+        "accent_color": (96, 165, 250),
+        "badge_color": (217, 119, 6),
+        "bgm": "output006.mp3",
+        "hook_badge": "⭐ ALL-TIME LOW DEAL"
+    },
+    {
+        "bg_color": (6, 78, 59),        # Emerald Forest
+        "header_color": (16, 185, 129), # Emerald Green
+        "header_text": "💥 MASSIVE DISCOUNT ALERT 💥",
+        "price_box_color": (4, 47, 46),
+        "accent_color": (52, 211, 153),
+        "badge_color": (217, 119, 6),
+        "bgm": "output002.mp3",
+        "hook_badge": "🏆 LIMITED TIME LOOT"
+    },
+    {
+        "bg_color": (15, 23, 42),       # Slate Navy
+        "header_color": (220, 38, 38),  # Crimson Red
+        "header_text": "🚨 BHARATBAZARO DAILY STEAL 🚨",
+        "price_box_color": (30, 41, 59),
+        "accent_color": (245, 158, 11),
+        "badge_color": (234, 88, 12),
+        "bgm": "output001.mp3",
+        "hook_badge": "🔥 VIRAL DEAL OF THE DAY"
+    },
+]
+
+def append_shorts_subtag(base_url: str, asin: str) -> str:
+    """Cleanly append or replace ascsubtag with bb-shorts."""
+    tag = "dammaiprasad-21"
+    if base_url and ("amazon." in base_url or "amzn." in base_url):
+        clean = re.sub(r"([?&])ascsubtag=[^&]*", r"\1", str(base_url)).rstrip("?&")
+        sep = "&" if "?" in clean else "?"
+        return f"{clean}{sep}ascsubtag=bb-shorts"
+    return f"https://www.amazon.in/dp/{asin}?tag={tag}&linkCode=ll1&ascsubtag=bb-shorts"
+
+def load_rendered_state() -> dict:
+    """Load lightweight state tracking already-rendered ASINs."""
+    if STATE_FILE.exists():
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+        except Exception as e:
+            print(f"Warning: Failed to load state {STATE_FILE}: {e}")
+    return {}
+
+def save_rendered_state(state: dict):
+    """Persist rendered ASIN state."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2, ensure_ascii=False)
+
+def is_asin_recently_rendered(asin: str, state: dict, days: int = 7) -> bool:
+    """Check if ASIN was already rendered within the past `days` (default 7)."""
+    if not asin or asin not in state:
+        return False
+    entry = state[asin]
+    epoch = entry.get("rendered_at_epoch") if isinstance(entry, dict) else entry
+    if not epoch or not isinstance(epoch, (int, float)):
+        return False
+    cutoff = time.time() - (days * 86400)
+    return epoch >= cutoff
+
+def mark_asin_rendered(asin: str, title: str, state: dict, output_file: Path = None):
+    """Record that an ASIN has been rendered."""
+    now_epoch = int(time.time())
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    state[asin] = {
+        "rendered_at_epoch": now_epoch,
+        "rendered_at_iso": now_iso,
+        "title": title,
+        "video_file": str(output_file.name) if output_file else None,
+    }
+    save_rendered_state(state)
+
+def fetch_video_queue(queue_source: str) -> list:
+    """Fetch video_queue.json from URL or local file path."""
+    source = queue_source.strip()
+    clean_path = source.replace("file://", "")
+    if Path(clean_path).exists():
+        with open(clean_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+    try:
+        resp = requests.get(source, timeout=15, headers={"User-Agent": "LeadForge-Video-Queue/1.0"})
+        if resp.status_code == 200:
+            data = resp.json()
+            if isinstance(data, list):
+                return data
+    except Exception as e:
+        print(f"Warning: Failed to fetch video queue from {source}: {e}")
+    return []
+
+def convert_queue_item_to_deal(item: dict, index: int = 0) -> dict:
+    """Convert item from video_queue.json to internal deal format."""
+    asin = str(item.get("asin") or "").strip().upper()
+    title = str(item.get("title") or f"Amazon Deal {asin}").strip()
+    category = str(item.get("category") or "Amazon Deals").strip()
+    mrp = int(round(float(item.get("mrp") or 0)))
+    live_price = int(round(float(item.get("live_price") or item.get("effective_price") or 0)))
+    effective_price = int(round(float(item.get("effective_price") or live_price or 0)))
+    if effective_price <= 0:
+        effective_price = live_price if live_price > 0 else 999
+    if mrp < effective_price:
+        mrp = effective_price
+
+    disc = int(round(float(item.get("discount_pct") or 0)))
+    if disc <= 0 and mrp > effective_price > 0:
+        disc = int(round(((mrp - effective_price) / mrp) * 100))
+    savings = max(0, mrp - effective_price)
+    rating = float(item.get("rating") or 4.2)
+    reviews = int(item.get("review_count") or item.get("reviews") or 2500)
+
+    base_url = item.get("base_affiliate_url") or f"https://www.amazon.in/dp/{asin}?tag=dammaiprasad-21"
+    aff_url = append_shorts_subtag(base_url, asin)
+
+    theme = THEME_PRESETS[index % len(THEME_PRESETS)].copy()
+    theme["header_text"] = f"🔥 {category.upper()[:24]} LOOT 🔥"
+
+    return {
+        "asin": asin,
+        "title": title,
+        "category": category,
+        "mrp": mrp,
+        "price": effective_price,
+        "discount": disc,
+        "savings": savings,
+        "rating": rating,
+        "reviews": reviews,
+        "image_url": item.get("image_url"),
+        "base_affiliate_url": base_url,
+        "affiliate_url": aff_url,
+        "default_lang": "hi",
+        "default_voice": "hi-IN-MadhurNeural" if (index % 2 == 0) else "hi-IN-SwaraNeural",
+        "theme": theme,
+    }
+
+def generate_caption_file(deal: dict, video_path: Path) -> Path:
+    """Generate companion .txt caption file for Reels, Shorts & WhatsApp."""
+    aff_url = append_shorts_subtag(deal.get("base_affiliate_url"), deal["asin"])
+    price = deal["price"]
+    mrp = deal["mrp"]
+    disc = deal["discount"]
+    savings = deal["savings"]
+    title = deal["title"]
+
+    caption = (
+        f"🚨 LOOT DEAL ALERT! 🔥\n\n"
+        f"👉 {title}\n\n"
+        f"💰 Deal Price: ₹{price:,} (MRP: ₹{mrp:,})\n"
+        f"⚡ Flat {disc}% OFF | Instant Savings: ₹{savings:,}!\n"
+        f"⭐ Rating: {deal.get('rating', 4.2)}★ ({deal.get('reviews', 1000):,} verified reviews)\n\n"
+        f"🛒 Buy on Amazon:\n"
+        f"{aff_url}\n\n"
+        f"🔔 Join our Telegram for 24/7 Loot Alerts (@Flash_Deals_Flipkart_Amazon):\n"
+        f"👉 https://t.me/Flash_Deals_Flipkart_Amazon\n\n"
+        f"🌐 24/7 AI Price Tracker: https://bharatbazaro.com\n\n"
+        f"#AmazonDeals #LootAlert #BharatBazaro #AmazonSale #PriceDrop #IndiaShopping #SmartShopping #DealsOfTheDay"
+    )
+
+    caption_path = video_path.with_suffix(".txt")
+    with open(caption_path, "w", encoding="utf-8") as f:
+        f.write(caption)
+
+    asin_caption = OUTPUT_DIR / f"{deal['asin']}_caption.txt"
+    with open(asin_caption, "w", encoding="utf-8") as f:
+        f.write(caption)
+
+    print(f"  ✓ Companion caption saved: {caption_path.name}")
+    return caption_path
+
 def get_font(size: int, bold: bool = False):
-    """Resolve high quality Windows system fonts or bundled fonts."""
+    """Resolve high quality Windows system fonts, bundled fonts, or Linux fonts."""
     font_candidates = [
         r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
         r"C:\Windows\Fonts\segoeuib.ttf" if bold else r"C:\Windows\Fonts\segoeui.ttf",
-        str(BASE_DIR / "resource" / "fonts" / "BeVietnamPro-Bold.ttf") if bold else str(BASE_DIR / "resource" / "fonts" / "BeVietnamPro-Medium.ttf"),
+        str(BASE_DIR / "resource" / "fonts" / ("BeVietnamPro-Bold.ttf" if bold else "BeVietnamPro-Medium.ttf")),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
     ]
     for path in font_candidates:
         if Path(path).exists():
@@ -416,10 +623,14 @@ def create_slide_image(deal: dict, slide_idx: int) -> Path:
 
     # 6. Bottom Call to Action Banner
     draw.rounded_rectangle([(80, 1660), (1000, 1840)], radius=30, fill=(37, 99, 235))
-    cta_title = "👇 TAP LINK IN BIO / COMMENT 👇" if slide_idx != 2 else "🚀 JOIN WHATSAPP & TELEGRAM VIP"
-    cta_sub = "Verified Amazon India Affiliate Link" if slide_idx != 2 else "Visit BharatBazaro.com for daily loot drops"
+    if slide_idx == 2:
+        cta_title = "🚀 JOIN TELEGRAM VIP & SAVE BIG"
+        cta_sub = "Telegram: @Flash_Deals_Flipkart_Amazon | bharatbazaro.com"
+    else:
+        cta_title = "👇 TAP LINK IN BIO / COMMENTS 👇"
+        cta_sub = "Telegram: @Flash_Deals_Flipkart_Amazon | bharatbazaro.com"
     draw.text((130, 1700), cta_title, fill=(255, 255, 255), font=get_font(38, bold=True))
-    draw.text((220, 1765), cta_sub, fill=(219, 234, 254), font=get_font(28))
+    draw.text((120, 1765), cta_sub, fill=(219, 234, 254), font=get_font(25, bold=True))
 
     slide_path = OUTPUT_DIR / f"{deal['asin']}_slide_{slide_idx}.png"
     img.save(slide_path, quality=95)
@@ -436,15 +647,16 @@ def build_deal_script(deal: dict, language: str = "en") -> str:
     if "custom_script" in deal:
         return deal["custom_script"]
 
+    reviews_count = deal.get("reviews") or 1500
     if language == "hi":
         return (
             f"Amazon India par zabardast loot deal alert! "
             f"{deal['title']} jiska original MRP {deal['mrp']} rupaye hai, "
             f"aaj mil raha hai flat {deal['discount']} percent discount par, sirf {deal['price']} rupaye mein! "
             f"Aapki seedhi bachat hogi {deal['savings']} rupaye ki! "
-            f"{deal['rating']} star rating aur {deal['reviews']:,} se zyaada customer reviews ke saath ye deal limited time ke liye hai. "
-            f"Abhi buy karne ke liye bio ya comment section mein affiliate link check karein, "
-            f"aur rozaana aisi price drops ke liye BharatBazaro ko follow karein!"
+            f"{deal['rating']} star rating aur {reviews_count:,} se zyaada verified customer reviews ke saath ye price drop limited time ke liye hai. "
+            f"Abhi order karne ke liye bio ya comment section mein affiliate link check karein, "
+            f"aur rozaana aisi price drops ke liye bharatbazaro.com aur hamare Telegram channel @Flash_Deals_Flipkart_Amazon ko zaroor join karein!"
         )
     else:
         return (
@@ -452,9 +664,9 @@ def build_deal_script(deal: dict, language: str = "en") -> str:
             f"The top-selling {deal['title']} with MRP {deal['mrp']} rupees, "
             f"is crashing today at a massive {deal['discount']} percent discount, for just {deal['price']} rupees! "
             f"You save a flat {deal['savings']} rupees instantly! "
-            f"Rated {deal['rating']} stars with over {deal['reviews']:,} verified reviews. "
+            f"Rated {deal['rating']} stars with over {reviews_count:,} verified reviews. "
             f"This price drop won't last long. "
-            f"Tap the affiliate link in our bio or comments to order now, and join BharatBazaro for daily loot deals!"
+            f"Tap the affiliate link in our bio or comments to order now, and visit bharatbazaro.com or join @Flash_Deals_Flipkart_Amazon on Telegram for daily loot deals!"
         )
 
 def get_audio_duration(audio_file: Path) -> float:
@@ -603,6 +815,9 @@ def generate_single_video(deal: dict, lang: str = None, voice: str = None) -> Pa
     # Step 4: Verification
     size_mb = output_video.stat().st_size / (1024 * 1024)
     print(f"[4/4] ✅ Done: {output_video.name} ({size_mb:.2f} MB, {duration:.1f}s)")
+
+    # Step 5: Companion Caption Generation
+    generate_caption_file(deal, output_video)
     return output_video
 
 def main():
@@ -611,8 +826,54 @@ def main():
     parser.add_argument("--lang", type=str, default="", choices=["", "en", "hi"], help="Voice language")
     parser.add_argument("--voice", type=str, default="", help="Edge TTS voice name")
     parser.add_argument("--all", action="store_true", help="Generate unique videos for ALL curated deals")
+    parser.add_argument(
+        "--from-queue",
+        nargs="?",
+        const="https://raw.githubusercontent.com/Prasad-PingFederate/DealDash_ai_Bot/main/data/video_queue.json",
+        default=None,
+        help="Fetch and render top deals from DealDash video_queue.json (URL or local file path)",
+    )
+    parser.add_argument(
+        "--max-deals",
+        type=int,
+        default=2,
+        help="Max new deals to render per run (default: 2 to fit Actions limits)",
+    )
     args = parser.parse_args()
 
+    # 1. Queue Mode (Automated 9:16 Deal Shorts Pipeline)
+    if args.from_queue is not None:
+        queue_src = args.from_queue or "https://raw.githubusercontent.com/Prasad-PingFederate/DealDash_ai_Bot/main/data/video_queue.json"
+        print(f"\n=======================================================")
+        print(f"📥 Running in QUEUE MODE: {queue_src}")
+        print(f"=======================================================")
+        state = load_rendered_state()
+        queue_items = fetch_video_queue(queue_src)
+        print(f"Found {len(queue_items)} deal(s) in video queue.")
+
+        rendered_count = 0
+        for idx, item in enumerate(queue_items):
+            if rendered_count >= args.max_deals:
+                print(f"Reached max limit of {args.max_deals} deal(s) for this run.")
+                break
+            asin = str(item.get("asin") or "").strip().upper()
+            if not asin:
+                continue
+            if is_asin_recently_rendered(asin, state, days=7):
+                print(f"⏭️ Skipping {asin} (already rendered in the last 7 days).")
+                continue
+
+            deal = convert_queue_item_to_deal(item, index=rendered_count)
+            lang = args.lang or deal.get("default_lang", "hi")
+            voice = args.voice or deal.get("default_voice")
+            output_vid = generate_single_video(deal, lang=lang, voice=voice)
+            mark_asin_rendered(asin, deal["title"], state, output_vid)
+            rendered_count += 1
+
+        print(f"\n✨ Queue cycle finished. Rendered {rendered_count} new deal short(s).")
+        return
+
+    # 2. Batch Mode for all Curated Sample Deals
     if args.all:
         print(f"\n🚀 Generating Unique Videos for ALL {len(SAMPLE_DEALS)} Curated Deals...")
         generated = []
@@ -624,7 +885,7 @@ def main():
             print(f"  📍 {g.resolve()}")
         return
 
-    # Single deal mode
+    # 3. Manual Single Deal Mode (--asin)
     asin = args.asin or "B09W2GFM7Y"
     deal = next((d for d in SAMPLE_DEALS if d["asin"] == asin), SAMPLE_DEALS[0])
     lang = args.lang or deal.get("default_lang", "hi")
