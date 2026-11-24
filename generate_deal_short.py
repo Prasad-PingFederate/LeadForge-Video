@@ -502,7 +502,7 @@ def generate_radar_graphic(output_path: Path):
     return output_path
 
 def download_product_image(url: str, asin: str, deal_title: str):
-    """Download Amazon product image or return cached image."""
+    """Download Amazon product image using 5-tier smart resolver with Zero-Blank Gate."""
     local_path = CACHE_DIR / f"{asin}.jpg"
     
     if asin == "BHARATBAZARO_RADAR":
@@ -511,8 +511,14 @@ def download_product_image(url: str, asin: str, deal_title: str):
             generate_radar_graphic(radar_path)
         return radar_path
 
-    # Check if a genuine image exists in cache (>20KB)
-    if local_path.exists() and local_path.stat().st_size > 20000:
+    try:
+        from smart_image_resolver import resolve_product_image
+        return resolve_product_image(asin, deal_title, direct_url=url)
+    except Exception as e:
+        print(f"Warning: smart_image_resolver integration fallback: {e}")
+
+    # Check if a genuine image exists in cache (>15KB)
+    if local_path.exists() and local_path.stat().st_size > 15000:
         return local_path
     
     # Download directly from URL if provided
