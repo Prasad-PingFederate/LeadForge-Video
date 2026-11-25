@@ -9,6 +9,7 @@ If credentials are not set, cleanly logs a notice and exits with 0.
 import os
 import sys
 import glob
+import json
 import logging
 from pathlib import Path
 import requests
@@ -19,7 +20,33 @@ logger = logging.getLogger("deliver_short")
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "output"
 
-def deliver_video_to_telegram(video_path: Path, caption_path: Path, bot_token: str, chat_id: str) -> bool:
+
+def load_gdrive_links(output_dir: Path = OUTPUT_DIR) -> dict[str, str]:
+    """Load filename -> web_view_link mapping from output/gdrive_manifest.json if present."""
+    manifest_path = output_dir / "gdrive_manifest.json"
+    if not manifest_path.exists():
+        return {}
+    try:
+        entries = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if not isinstance(entries, list):
+            return {}
+        return {
+            item["filename"]: item["web_view_link"]
+            for item in entries
+            if isinstance(item, dict) and item.get("filename") and item.get("web_view_link")
+        }
+    except Exception as e:
+        logger.warning("Could not parse %s: %s", manifest_path, e)
+        return {}
+
+
+def deliver_video_to_telegram(
+    video_path: Path,
+    caption_path: Path,
+    bot_token: str,
+    chat_id: str,
+    drive_link: str | None = None,
+) -> bool:
     """Send rendered MP4 short and companion caption to private Telegram staging chat."""
     if not video_path.exists():
         logger.warning("Video file not found: %s", video_path)
@@ -32,6 +59,10 @@ def deliver_video_to_telegram(video_path: Path, caption_path: Path, bot_token: s
                 caption_text = f.read().strip()
         except Exception as e:
             logger.warning("Error reading caption file %s: %s", caption_path, e)
+
+    if drive_link:
+        drive_line = f"Drive Archive: {drive_link}"
+        caption_text = f"{caption_text}\n\n{drive_line}" if caption_text else drive_line
 
     url = f"https://api.telegram.org/bot{bot_token}/sendVideo"
     # Telegram sendVideo caption limit is 1024 characters
@@ -92,6 +123,7 @@ def main():
 
     # Deliver newest rendered MP4s from this cycle (default 2, configurable via MAX_DELIVER_SHORTS)
     max_deliver = max(1, int(os.getenv("MAX_DELIVER_SHORTS", "2")))
+    drive_links = load_gdrive_links(OUTPUT_DIR)
     delivered_count = 0
     for video in mp4_files[:max_deliver]:
         caption_file = video.with_suffix(".txt")
@@ -103,7 +135,13 @@ def main():
                 if alt_caption.exists():
                     caption_file = alt_caption
 
-        success = deliver_video_to_telegram(video, caption_file, bot_token, staging_chat_id)
+        success = deliver_video_to_telegram(
+            video,
+            caption_file,
+            bot_token,
+            staging_chat_id,
+            drive_link=drive_links.get(video.name),
+        )
         if success:
             delivered_count += 1
 

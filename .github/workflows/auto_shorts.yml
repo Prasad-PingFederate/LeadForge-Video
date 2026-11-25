@@ -40,11 +40,20 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --upgrade requests pillow "edge-tts>=6.1.12" piper-tts gtts imageio-ffmpeg
+          pip install --upgrade requests pillow "edge-tts>=6.1.12" piper-tts gtts imageio-ffmpeg google-api-python-client google-auth google-auth-oauthlib
 
       - name: Render Top Deal Shorts from Queue
         run: |
           python generate_deal_short.py --from-queue
+
+      - name: Upload rendered shorts to Google Drive
+        if: ${{ secrets.GOOGLE_DRIVE_REFRESH_TOKEN != '' }}
+        env:
+          GOOGLE_DRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
+          GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
+          GOOGLE_DRIVE_REFRESH_TOKEN: ${{ secrets.GOOGLE_DRIVE_REFRESH_TOKEN }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        run: python upload_to_gdrive.py
 
       - name: Deliver Rendered Shorts to Telegram Staging
         env:

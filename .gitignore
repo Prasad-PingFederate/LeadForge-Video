@@ -50,4 +50,9 @@ htmlcov/
 output/
 test_audio.mp3
 test_slide.jpg
+client_secret.json
+client_secret*.json
+credentials.json
+token.json
+.env.*
 
