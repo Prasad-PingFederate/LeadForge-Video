@@ -201,3 +201,37 @@ def test_deliver_short_appends_gdrive_link(tmp_path):
     sent_caption = mock_post.call_args.kwargs["data"]["caption"]
     assert "Great deal!" in sent_caption
     assert "Drive Archive: https://drive.google.com/file/d/vid_id_1/view" in sent_caption
+
+
+def test_select_queue_deals_fallback_and_force():
+    import time
+    import generate_deal_short
+
+    now = int(time.time())
+    state = {
+        "Q1": {"rendered_at_epoch": now - 3600},
+        "Q2": {"rendered_at_epoch": now - 3600},
+        "F_RENDERED": {"rendered_at_epoch": now - 3600},
+    }
+    queue_items = [
+        {"asin": "Q1", "title": "Queue 1", "epc_score": 500},
+        {"asin": "Q2", "title": "Queue 2", "epc_score": 400},
+        {"asin": "Q3", "title": "Queue 3", "epc_score": 300},
+    ]
+    feed_items = [
+        {"asin": "F_INELIGIBLE", "video_eligible": False, "epc_score": 999},
+        {"asin": "F_LOW", "video_eligible": True, "epc_score": 50},
+        {"asin": "F_RENDERED", "video_eligible": True, "epc_score": 800},
+        {"asin": "F_HIGH", "video_eligible": True, "epc_score": 250},
+        {"asin": "F_MID", "video_eligible": True, "epc_score": 150},
+    ]
+
+    picked = generate_deal_short.select_queue_deals(
+        queue_items, feed_items, state, max_deals=3, force=False, days=7
+    )
+    assert [d["asin"] for d in picked] == ["Q3", "F_HIGH", "F_MID"]
+
+    forced = generate_deal_short.select_queue_deals(
+        queue_items, feed_items, state, max_deals=3, force=True, days=7
+    )
+    assert [d["asin"] for d in forced] == ["Q1", "Q2", "Q3"]

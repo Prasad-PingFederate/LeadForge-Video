@@ -968,6 +968,56 @@ def generate_single_video(deal: dict, lang: str = None, voice: str = None) -> Pa
 
     return output_video
 
+DEFAULT_QUEUE_URL = "https://raw.githubusercontent.com/Prasad-PingFederate/DealDash_ai_Bot/main/data/video_queue.json"
+DEFAULT_FEED_URL = "https://raw.githubusercontent.com/Prasad-PingFederate/DealDash_ai_Bot/main/data/deals_feed.json"
+
+
+def select_queue_deals(
+    queue_items: list,
+    feed_items: list,
+    state: dict,
+    max_deals: int = 3,
+    force: bool = False,
+    days: int = 7,
+) -> list:
+    """Pick up to max_deals unrendered items from video_queue.json, then fill from deals_feed.json."""
+    selected = []
+    seen_asins = set()
+
+    for item in queue_items:
+        if len(selected) >= max_deals:
+            break
+        asin = str(item.get("asin") or "").strip().upper()
+        if not asin or asin in seen_asins:
+            continue
+        if not force and is_asin_recently_rendered(asin, state, days=days):
+            print(f"⏭️ Skipping {asin} (already rendered in the last {days} days).")
+            seen_asins.add(asin)
+            continue
+        seen_asins.add(asin)
+        selected.append(item)
+
+    if len(selected) < max_deals and feed_items:
+        eligible_feed = [
+            item for item in feed_items
+            if item.get("video_eligible") is True and str(item.get("asin") or "").strip()
+        ]
+        eligible_feed.sort(key=lambda x: float(x.get("epc_score") or 0.0), reverse=True)
+        for item in eligible_feed:
+            if len(selected) >= max_deals:
+                break
+            asin = str(item.get("asin") or "").strip().upper()
+            if not asin or asin in seen_asins:
+                continue
+            if not force and is_asin_recently_rendered(asin, state, days=days):
+                seen_asins.add(asin)
+                continue
+            seen_asins.add(asin)
+            selected.append(item)
+
+    return selected
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate 100% Free BharatBazaro Deal Videos")
     parser.add_argument("--asin", type=str, default="", help="Amazon ASIN (default: first deal)")
@@ -977,40 +1027,70 @@ def main():
     parser.add_argument(
         "--from-queue",
         nargs="?",
-        const="https://raw.githubusercontent.com/Prasad-PingFederate/DealDash_ai_Bot/main/data/video_queue.json",
+        const=DEFAULT_QUEUE_URL,
         default=None,
         help="Fetch and render top deals from DealDash video_queue.json (URL or local file path)",
     )
     parser.add_argument(
+        "--feed",
+        type=str,
+        default=None,
+        help="Optional fallback deals_feed.json URL or local file path when queue items are exhausted",
+    )
+    parser.add_argument(
         "--max-deals",
         type=int,
-        default=2,
-        help="Max new deals to render per run (default: 2 to fit Actions limits)",
+        default=3,
+        help="Max new deals to render per run (default: 3 to fit Actions limits)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-render deals even if already rendered in the last 7 days",
     )
     args = parser.parse_args()
 
     # 1. Queue Mode (Automated 9:16 Deal Shorts Pipeline)
     if args.from_queue is not None:
-        queue_src = args.from_queue or "https://raw.githubusercontent.com/Prasad-PingFederate/DealDash_ai_Bot/main/data/video_queue.json"
+        queue_src = args.from_queue or DEFAULT_QUEUE_URL
+        force_render = args.force or os.getenv("FORCE_RENDER", "").strip().lower() in {"1", "true", "yes"}
         print(f"\n=======================================================")
-        print(f"📥 Running in QUEUE MODE: {queue_src}")
+        print(f"📥 Running in QUEUE MODE: {queue_src} (max_deals={args.max_deals}, force={force_render})")
         print(f"=======================================================")
         state = load_rendered_state()
         queue_items = fetch_video_queue(queue_src)
         print(f"Found {len(queue_items)} deal(s) in video queue.")
 
-        rendered_count = 0
-        for idx, item in enumerate(queue_items):
-            if rendered_count >= args.max_deals:
-                print(f"Reached max limit of {args.max_deals} deal(s) for this run.")
-                break
-            asin = str(item.get("asin") or "").strip().upper()
-            if not asin:
-                continue
-            if is_asin_recently_rendered(asin, state, days=7):
-                print(f"⏭️ Skipping {asin} (already rendered in the last 7 days).")
-                continue
+        selected_items = select_queue_deals(
+            queue_items, [], state, max_deals=args.max_deals, force=force_render, days=7
+        )
+        if len(selected_items) < args.max_deals:
+            feed_src = args.feed
+            if feed_src is None:
+                if queue_src.startswith("http://") or queue_src.startswith("https://"):
+                    feed_src = DEFAULT_FEED_URL
+                else:
+                    local_feed = Path(queue_src).with_name("deals_feed.json")
+                    if local_feed.exists():
+                        feed_src = str(local_feed)
+            if feed_src:
+                try:
+                    feed_items = fetch_video_queue(feed_src)
+                    print(f"Checking fallback feed ({len(feed_items)} deals) for remaining slots...")
+                    selected_items = select_queue_deals(
+                        queue_items,
+                        feed_items,
+                        state,
+                        max_deals=args.max_deals,
+                        force=force_render,
+                        days=7,
+                    )
+                except Exception as e:
+                    print(f"⚠️ Could not load fallback feed {feed_src}: {e}")
 
+        rendered_count = 0
+        for item in selected_items[:args.max_deals]:
+            asin = str(item.get("asin") or "").strip().upper()
             deal = convert_queue_item_to_deal(item, index=rendered_count)
             lang = args.lang or deal.get("default_lang", "hi")
             voice = args.voice or deal.get("default_voice")

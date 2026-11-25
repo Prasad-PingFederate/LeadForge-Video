@@ -6,6 +6,15 @@ on:
   repository_dispatch:
     types: [render_top_deals]
   workflow_dispatch:
+    inputs:
+      force_render:
+        description: Re-render deals even if rendered in the last 7 days
+        type: boolean
+        default: false
+      max_videos:
+        description: Maximum number of shorts to render in this run
+        type: string
+        default: "3"
 
 concurrency:
   group: leadforge-auto-shorts
@@ -43,8 +52,15 @@ jobs:
           pip install --upgrade requests pillow "edge-tts>=6.1.12" piper-tts gtts imageio-ffmpeg google-api-python-client google-auth google-auth-oauthlib
 
       - name: Render Top Deal Shorts from Queue
+        env:
+          FORCE_RENDER: ${{ github.event_name == 'workflow_dispatch' && inputs.force_render || 'false' }}
+          MAX_VIDEOS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_videos || '3' }}
         run: |
-          python generate_deal_short.py --from-queue
+          force_flag=""
+          if [ "${FORCE_RENDER}" = "true" ]; then
+            force_flag="--force"
+          fi
+          python generate_deal_short.py --from-queue --max-deals "${MAX_VIDEOS}" ${force_flag}
 
       - name: Upload rendered shorts to Google Drive
         env:
@@ -58,6 +74,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_STAGING_CHAT_ID: ${{ secrets.TELEGRAM_STAGING_CHAT_ID || secrets.ADMIN_CHAT_ID }}
+          MAX_DELIVER_SHORTS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_videos || '3' }}
         run: |
           python deliver_short.py || true
 
