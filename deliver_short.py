@@ -64,6 +64,18 @@ def deliver_video_to_telegram(video_path: Path, caption_path: Path, bot_token: s
         return False
 
 
+def find_final_rendered_videos(output_dir: Path) -> list[Path]:
+    """Return final rendered bharatbazaro_*.mp4 files newest-first, skipping intermediates."""
+    # Check exact lowercase prefix too because Windows filesystems match case-insensitively.
+    candidates = (
+        p for p in output_dir.glob("bharatbazaro_*.mp4")
+        if p.name.startswith("bharatbazaro_")
+        and "_clip_" not in p.name
+        and not p.stem.endswith("_visual")
+    )
+    return sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)
+
+
 def main():
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     staging_chat_id = (os.getenv("TELEGRAM_STAGING_CHAT_ID") or os.getenv("ADMIN_CHAT_ID") or "").strip()
@@ -72,15 +84,16 @@ def main():
         logger.info("TELEGRAM_BOT_TOKEN or TELEGRAM_STAGING_CHAT_ID is not set. Skipping staging delivery.")
         return 0
 
-    # Scan output/ for rendered mp4 files
-    mp4_files = sorted(OUTPUT_DIR.glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
+    # Scan output/ for final rendered mp4 files only (skip intermediate *_clip_*.mp4 / *_visual.mp4)
+    mp4_files = find_final_rendered_videos(OUTPUT_DIR)
     if not mp4_files:
-        logger.info("No MP4 files found in %s to deliver.", OUTPUT_DIR)
+        logger.info("No final bharatbazaro_*.mp4 files found in %s to deliver.", OUTPUT_DIR)
         return 0
 
-    # Deliver up to the 2 newest MP4s rendered in this cycle
+    # Deliver newest rendered MP4s from this cycle (default 2, configurable via MAX_DELIVER_SHORTS)
+    max_deliver = max(1, int(os.getenv("MAX_DELIVER_SHORTS", "2")))
     delivered_count = 0
-    for video in mp4_files[:2]:
+    for video in mp4_files[:max_deliver]:
         caption_file = video.with_suffix(".txt")
         if not caption_file.exists():
             # Check for asin_caption.txt

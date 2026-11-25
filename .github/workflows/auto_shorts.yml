@@ -59,8 +59,10 @@ jobs:
         with:
           name: rendered-deal-shorts
           path: |
-            output/*.mp4
-            output/*.txt
+            output/bharatbazaro_*.mp4
+            output/bharatbazaro_*.txt
+            !output/*_clip_*.mp4
+            !output/*_visual.mp4
           if-no-files-found: ignore
           retention-days: 7
 
